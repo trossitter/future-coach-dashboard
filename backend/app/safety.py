@@ -35,6 +35,18 @@ EXISTS {
 }
 """
 
+# Ad-hoc, this-session avoidance confirmed by the coach via the clarify loop.
+# Same part-of traversal as the injury rule, but the joint set comes from the
+# request ($avoid_joints) rather than the member's stored injuries. With an empty
+# list the IN [] predicate is always false, so the whole EXISTS is harmless.
+AVOID_JOINT_UNSAFE = """
+EXISTS {
+    MATCH (ex)-[:LOADS]->(loaded:Joint)
+    MATCH (aj:Joint) WHERE aj.name IN $avoid_joints
+      AND ((loaded)-[:PART_OF*0..]->(aj) OR (aj)-[:PART_OF*0..]->(loaded))
+}
+"""
+
 
 def contraindicated(member_id: str) -> list[dict]:
     """Exercises unsafe by injury — joint (part-of aware) or movement pattern."""
@@ -73,14 +85,17 @@ def contraindicated(member_id: str) -> list[dict]:
 
 def eligible(member_id: str, *, muscle: str | None = None,
              pattern: str | None = None,
-             exclude_terms: list[str] | None = None) -> list[dict]:
+             exclude_terms: list[str] | None = None,
+             avoid_joints: list[str] | None = None) -> list[dict]:
     """Exercises that are injury-safe, pattern-safe, and equipment-feasible —
-    optionally narrowed to a muscle/pattern and minus excluded name terms."""
+    optionally narrowed to a muscle/pattern, minus excluded name terms, and minus
+    any joints the coach confirmed to avoid this session (clarify loop)."""
     q = f"""
         MATCH (ex:Exercise)
         WHERE NOT {INJURY_JOINT_UNSAFE}
           AND NOT {INJURY_PATTERN_UNSAFE}
           AND NOT {EQUIP_UNAVAILABLE}
+          AND NOT {AVOID_JOINT_UNSAFE}
           AND ($muscle IS NULL OR (ex)-[:TARGETS]->(:Muscle {{name: $muscle}}))
           AND ($pattern IS NULL OR (ex)-[:HAS_PATTERN]->(:MovementPattern {{name: $pattern}}))
           AND ($terms IS NULL OR NOT ANY(t IN $terms WHERE toLower(ex.name) CONTAINS t))
@@ -88,7 +103,8 @@ def eligible(member_id: str, *, muscle: str | None = None,
         ORDER BY name
     """
     return run(q, id=member_id, muscle=muscle, pattern=pattern,
-               terms=[t.lower() for t in exclude_terms] if exclude_terms else None)
+               terms=[t.lower() for t in exclude_terms] if exclude_terms else None,
+               avoid_joints=avoid_joints or [])
 
 
 def why_skipped(member_id: str, exercise_id: str) -> list[dict]:

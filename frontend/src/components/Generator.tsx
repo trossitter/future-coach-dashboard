@@ -25,16 +25,33 @@ export function Generator({ memberId, memberName, injuries }: any) {
   const [trace, setTrace] = useState<any[]>([]);
   const [narration, setNarration] = useState("");
   const [show, setShow] = useState<string | null>(null);
+  // ad-hoc, this-session joint constraints resolved via the clarify loop
+  const [clarify, setClarify] = useState<any>(null);
+  const [avoidJoints, setAvoidJoints] = useState<string[]>([]);
+  const [ignoreJoints, setIgnoreJoints] = useState<string[]>([]);
 
-  async function run() {
-    setLoading(true); setResult(null); setNarration(""); setTrace([]);
+  async function run(avoid = avoidJoints, ignore = ignoreJoints) {
+    setLoading(true); setResult(null); setNarration(""); setTrace([]); setClarify(null);
     await postSSE("/generate/stream",
-      { member_id: memberId, prompt, time_minutes: time },
+      { member_id: memberId, prompt, time_minutes: time,
+        avoid_joints: avoid, ignore_joints: ignore },
       (ev, data) => {
-        if (ev === "result") { setResult(data.result); setTrace(data.trace); }
-        else if (ev === "narration") setNarration((n) => n + data);
+        if (ev === "result") {
+          if (data.result.clarification) setClarify(data.result.clarification);
+          else setResult(data.result);
+          setTrace(data.trace);
+        } else if (ev === "narration") setNarration((n) => n + data);
       });
     setLoading(false);
+  }
+
+  // coach answers one clarification → record the constraint and re-generate;
+  // any remaining unrecognised joints get asked on the next pass.
+  function resolve(joint: string, avoid: boolean) {
+    const nextAvoid = avoid ? [...avoidJoints, joint] : avoidJoints;
+    const nextIgnore = avoid ? ignoreJoints : [...ignoreJoints, joint];
+    setAvoidJoints(nextAvoid); setIgnoreJoints(nextIgnore);
+    run(nextAvoid, nextIgnore);
   }
 
   return (
@@ -47,10 +64,39 @@ export function Generator({ memberId, memberName, injuries }: any) {
           <input type="number" value={time} min={15} max={90}
             onChange={(e) => setTime(+e.target.value)} /> min
         </label>
-        <button onClick={run} disabled={loading || !memberId}>
+        <button onClick={() => run()} disabled={loading || !memberId}>
           {loading ? "Generating…" : "Generate"}
         </button>
       </div>
+
+      {clarify && (
+        <div className="clarify">
+          <div className="clarify-tag">Before I build this — one check</div>
+          {clarify.questions.map((q: string, i: number) => (
+            <div key={i} className="clarify-q">
+              <span>{q}</span>
+              <div className="clarify-actions">
+                <button className="chip" onClick={() => resolve(clarify.joints[i], true)}>
+                  Yes, avoid the {clarify.joints[i]}
+                </button>
+                <button className="chip ghost" onClick={() => resolve(clarify.joints[i], false)}>
+                  No, it's fine
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="muted">
+            The graph found a constraint it can't confirm on file — so it asks
+            instead of guessing. Your answer filters the exercise pool deterministically.
+          </div>
+        </div>
+      )}
+
+      {avoidJoints.length > 0 && (result || clarify) && (
+        <div className="muted constraint-note">
+          Avoiding this session: {avoidJoints.join(", ")} (coach-confirmed)
+        </div>
+      )}
 
       {trace.length > 0 && (
         <div className="trace">

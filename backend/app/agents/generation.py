@@ -38,6 +38,7 @@ class GenState(TypedDict, total=False):
     prompt: str
     time_minutes: int
     exclude_terms: list[str]
+    avoid_joints: list[str]
     trace: Trace
     journey: dict
     intent: dict
@@ -169,7 +170,8 @@ def _resolve_intent(prompt: str, muscle_surface: dict[str, str], patterns: list[
 def retrieve(state: GenState) -> dict:
     trace, member_id, intent = state["trace"], state["member_id"], state["intent"]
     with trace.step("agent", "retriever"):
-        eligible = safety.eligible(member_id, exclude_terms=intent.get("exclude_terms") or None)
+        eligible = safety.eligible(member_id, exclude_terms=intent.get("exclude_terms") or None,
+                                   avoid_joints=state.get("avoid_joints") or None)
         safe_ids = [e["id"] for e in eligible]
         meta = _exercise_meta(safe_ids)
         sem = {r["id"]: r["score"] for r in resolver.semantic_exercise_search(state["prompt"], k=50)}
@@ -320,12 +322,70 @@ def _build():
 GRAPH = _build()
 
 
+# --- clarify-before-generate ------------------------------------------------
+# Cues that turn a body-part mention into an avoidance ("easy on the knee",
+# "without aggravating her shoulder"). A joint named WITH a cue that is NOT on
+# the member's file is an ad-hoc constraint we must confirm, not silently obey
+# or silently ignore.
+_AVOID_CUES = (
+    "avoid", "without", "aggravat", "bother", "hurt", "sore", "pain", "protect",
+    "careful", "injur", "tweak", "issue", "problem", "flare", "bad ", "easy on",
+    "go easy", "gentle on", "watch the", "watch her", "sensitive",
+)
+
+
+def detect_clarifications(member_id: str, prompt: str,
+                          avoid_joints: list[str], ignore_joints: list[str]) -> list[str]:
+    """Joints the coach gestured at avoiding that AREN'T already accounted for —
+    not a stored injury, not already confirmed (avoid) or waved off (ignore).
+    Returns canonical joint names needing a yes/no before we generate."""
+    pl = f" {prompt.lower()} "
+    if not any(c in pl for c in _AVOID_CUES):
+        return []
+    injured = {r["name"] for r in run(
+        "MATCH (:Member {id:$id})-[:HAS_INJURY]->(:Injury)-[:AFFECTS]->(j:Joint) "
+        "RETURN j.name AS name", id=member_id)}
+    known = injured | set(avoid_joints) | set(ignore_joints)
+    # surface form (canonical name + aliases) → canonical joint name
+    surface: dict[str, str] = {}
+    for r in run("MATCH (j:Joint) RETURN j.name AS name, coalesce(j.alt_labels,[]) AS alts"):
+        surface[r["name"].lower()] = r["name"]
+        for a in r["alts"]:
+            surface[a.lower()] = r["name"]
+    mentioned = {canon for surf, canon in surface.items() if f" {surf} " in pl or f" {surf}" in pl}
+    return sorted(j for j in mentioned if j not in known)
+
+
 def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
-                   exclude_terms: list[str] | None = None) -> tuple[dict, list[dict]]:
+                   exclude_terms: list[str] | None = None,
+                   avoid_joints: list[str] | None = None,
+                   ignore_joints: list[str] | None = None) -> tuple[dict, list[dict]]:
+    avoid_joints, ignore_joints = avoid_joints or [], ignore_joints or []
     trace = Trace()
+    # Gate: an unrecognised avoidance constraint goes back to the coach instead of
+    # generating on an assumption. Safety stays deterministic — the graph decides
+    # what's ambiguous, the coach decides the answer.
+    with trace.step("agent", "clarify_gate"):
+        todo = detect_clarifications(member_id, prompt, avoid_joints, ignore_joints)
+        trace.add("decision", "ambiguous avoidance?", needs=todo)
+    if todo:
+        nm = run("MATCH (m:Member {id:$id}) RETURN m.name AS name", id=member_id)
+        name = nm[0]["name"] if nm else "this member"
+        return ({
+            "member_id": member_id,
+            "clarification": {
+                "joints": todo,
+                "questions": [
+                    f"You mentioned the {j}, but {name} has no {j} injury on file. "
+                    f"Should I avoid loading the {j} this session?"
+                    for j in todo
+                ],
+            },
+        }, trace.as_list())
     init: GenState = {
         "member_id": member_id, "prompt": prompt, "time_minutes": time_minutes,
-        "exclude_terms": exclude_terms or [], "trace": trace, "revisions": 0,
+        "exclude_terms": exclude_terms or [], "avoid_joints": avoid_joints,
+        "trace": trace, "revisions": 0,
     }
     final = GRAPH.invoke(init)
     result = {

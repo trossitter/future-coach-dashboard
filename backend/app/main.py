@@ -98,7 +98,8 @@ def generate(req: GenerateRequest) -> dict:
     """Surface A: multi-agent workout generation with provenance + trace.
     Returns the structured plan fast; narration is streamed via /generate/stream."""
     result, trace = run_generation(
-        req.member_id, req.prompt, req.time_minutes, req.exclude_terms
+        req.member_id, req.prompt, req.time_minutes, req.exclude_terms,
+        req.avoid_joints, req.ignore_joints
     )
     return {"result": result, "trace": trace}
 
@@ -108,11 +109,14 @@ def generate_stream(req: GenerateRequest) -> StreamingResponse:
     """SSE: emit the structured plan + trace immediately, then stream narration."""
     def events():
         result, trace = run_generation(
-            req.member_id, req.prompt, req.time_minutes, req.exclude_terms
+            req.member_id, req.prompt, req.time_minutes, req.exclude_terms,
+            req.avoid_joints, req.ignore_joints
         )
         yield f"event: result\ndata: {json.dumps({'result': result, 'trace': trace})}\n\n"
-        for token in narration_stream(req.prompt, result):
-            yield f"event: narration\ndata: {json.dumps(token)}\n\n"
+        # A clarification has no plan — skip narration, just close the stream.
+        if not result.get("clarification"):
+            for token in narration_stream(req.prompt, result):
+                yield f"event: narration\ndata: {json.dumps(token)}\n\n"
         yield "event: done\ndata: {}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
