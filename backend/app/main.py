@@ -3,15 +3,28 @@ the copilot get wired in at later build steps.
 """
 from __future__ import annotations
 
+import json
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 
 from . import longitudinal, resolver, safety
-from .agents.generation import run_generation
+from .agents.generation import narration_stream, run_generation
 from .db import run
 from .graph.ingest import ingest_all
 from .schemas import GenerateRequest
 
 app = FastAPI(title="Future KG Coaching Platform", version="0.1.0")
+
+
+@app.on_event("startup")
+def _warm_embedding_model() -> None:
+    """Load the ONNX embedding model at boot so the first request isn't cold."""
+    try:
+        from .embeddings import embed
+        embed(["warmup"])
+    except Exception:
+        pass
 
 
 @app.get("/health")
@@ -50,11 +63,27 @@ def member_longitudinal(member_id: str) -> dict:
 
 @app.post("/generate")
 def generate(req: GenerateRequest) -> dict:
-    """Surface A: multi-agent workout generation with provenance + trace."""
+    """Surface A: multi-agent workout generation with provenance + trace.
+    Returns the structured plan fast; narration is streamed via /generate/stream."""
     result, trace = run_generation(
         req.member_id, req.prompt, req.time_minutes, req.exclude_terms
     )
     return {"result": result, "trace": trace}
+
+
+@app.post("/generate/stream")
+def generate_stream(req: GenerateRequest) -> StreamingResponse:
+    """SSE: emit the structured plan + trace immediately, then stream narration."""
+    def events():
+        result, trace = run_generation(
+            req.member_id, req.prompt, req.time_minutes, req.exclude_terms
+        )
+        yield f"event: result\ndata: {json.dumps({'result': result, 'trace': trace})}\n\n"
+        for token in narration_stream(req.prompt, result):
+            yield f"event: narration\ndata: {json.dumps(token)}\n\n"
+        yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
 
 
 @app.get("/members/{member_id}/contraindicated")

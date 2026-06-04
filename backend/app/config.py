@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     data_dir: str = "data"
 
     anthropic_api_key: str = ""
-    # latest/most capable by default; set CLAUDE_MODEL=claude-sonnet-4-6 to trade
-    # a little quality for lower latency against the ~5s target.
-    claude_model: str = "claude-opus-4-8"
+    # The graph owns the reasoning/safety, so the LLM only does light structuring
+    # + phrasing — Haiku is the right fit for the ~5s target and token efficiency.
+    # Override with CLAUDE_MODEL=claude-opus-4-8 (or sonnet-4-6) for more polish.
+    claude_model: str = "claude-haiku-4-5"
 
 
 settings = Settings()
