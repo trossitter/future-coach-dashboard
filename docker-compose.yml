@@ -26,8 +26,12 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: futurepassword
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    # App source is mounted and uvicorn runs with --reload so code edits apply
+    # live without an image rebuild. Bind mount overlays the COPY'd /app/app.
     volumes:
       - ./data:/app/data:ro
+      - ./backend/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       neo4j:
         condition: service_healthy

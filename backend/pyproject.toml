@@ -10,15 +10,13 @@ dependencies = [
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
     "rapidfuzz>=3.9",
+    "fastembed>=0.3",
 ]
 
 [project.optional-dependencies]
-# Heavier deps wired in at the retrieval/generation steps, kept out of the
-# core image so the graph + safety slice builds and tests fast.
+# LangGraph + Claude wired in at the generation/copilot steps.
 ml = [
-    "sentence-transformers>=3.0",
     "langgraph>=0.2",
-    "langchain-anthropic>=0.2",
     "anthropic>=0.34",
 ]
 dev = [
