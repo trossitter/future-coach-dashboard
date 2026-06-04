@@ -50,6 +50,27 @@ traversal makes the safe, auditable decision → the LLM phrases it. The two gra
 meet at `Injury -[:AFFECTS]-> Joint` and `Member -[:HAS_ACCESS_TO]-> Equipment`,
 so member context drives clinical safety.
 
+### Request/response vs. streaming — when output reaches the client
+
+Two endpoint shapes. The `|SSE|` edges above are **responses**, not inputs: one
+POST opens the connection, the server then **pushes a sequence of output frames**
+(`event: <name>\ndata: <json>\n\n`) over that held-open connection.
+
+- **Plain request → one JSON blob** (connection responds once, closes):
+  `GET /members`, `GET /members/{id}/chat`, `GET /.../charts/{kind}`, `POST /generate`.
+- **SSE stream → many output frames** (`POST /generate/stream`, `POST /copilot`).
+  The **graph-derived truth is emitted first**, before the LLM is even called, so
+  it is never blocked behind LLM latency; the prose streams after:
+
+  | endpoint | frame 1 (instant) | frame 2 (repeats) | frame 3 |
+  |---|---|---|---|
+  | `/copilot` | `context` — deterministic facts + intent + trace | `answer` — one per LLM token | `done` |
+  | `/generate/stream` | `result` — structured plan **or** a clarification + provenance + trace | `narration` — one per LLM token | `done` |
+
+The client (`api.ts` `postSSE`) reads the body as a stream, splits on the blank-line
+frame boundary, and updates React state per frame — which is why the facts/plan snap
+in immediately and the sentence then assembles word by word.
+
 ---
 
 ## Run it (one command)
@@ -88,13 +109,19 @@ docker compose exec backend python -m evaluation.run   # scored eval report
 **A · Workout Generator.** Prompt + time window → a multi-agent runtime renders a
 structured workout (warmup / main / cooldown, sets·reps·rest). Interactive,
 graph-driven: exclude exercises, account for injuries (via the anatomy
-hierarchy), drop unavailable equipment and **find alternatives**. Every plan
-ships a **provenance trace** (why each exercise, which graph path, what was
-filtered for safety) and a **graph-evidence** visualization.
+hierarchy), drop unavailable equipment and **find alternatives**. A
+**clarify-before-generate** gate catches an avoidance the coach gestures at but
+that isn't on file (*"easy on the knee"* for a member with no knee injury) and
+asks rather than guessing — a *Yes* filters the safe pool through the same
+`part-of` traversal as a real injury. Every plan ships a **provenance trace** (why
+each exercise, which graph path, what was filtered for safety) and a
+**graph-evidence** visualization.
 
 **B · Coach AI Copilot.** Chat with retrieval over the member-context graph:
 quick-prompt palette (*brief · adherence · sleep · churn · what changed*), charts
-(adherence / sleep / weight / messages), grounded answers (never invented).
+(adherence / sleep / weight / messages), **past chat history with image
+attachments**, and **grounded follow-ups** (conversation memory for context,
+every claim still pinned to the retrieved member slice — never invented).
 
 ---
 
@@ -243,4 +270,5 @@ docs/      SCHEMA.md · DESIGN-NOTES.md
 
 Status: KG1+KG2 · deterministic safety · 3-pass resolution · two LangGraph crews ·
 streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz ·
-charts · tests (14) · eval · one-command Docker. Synthetic data only.
+charts · clarify-before-generate · chat history + images · grounded follow-ups ·
+input-size guards · tests (14) · eval · one-command Docker. Synthetic data only.
