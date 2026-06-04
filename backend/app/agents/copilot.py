@@ -21,10 +21,11 @@ from ..embeddings import embed_query
 from ..observability import Trace
 
 COPILOT_SYSTEM = (
-    "You are a fitness coach's AI copilot. Answer the coach's question using ONLY "
-    "the provided member_data, which was retrieved from the member's knowledge "
-    "graph. Be concise and specific — cite the actual numbers. If the data does "
-    "not contain the answer, say you don't have that data; never invent. No preamble."
+    "You are a fitness coach's AI copilot. Answer the coach's question in 1-3 short "
+    "sentences using ONLY the provided member_data (retrieved from the member's "
+    "knowledge graph). Cite the actual numbers and the most coach-relevant insight. "
+    "Never invent. Do NOT mention missing data, empty fields, JSON, or internal field "
+    "names — answer only with what is present. No preamble, no caveats."
 )
 
 # (intent, keywords) — first match wins; order matters.
@@ -117,26 +118,32 @@ def _retrieve_adherence(member_id: str, _q: str) -> dict:
 
 def _retrieve_sleep(member_id: str, _q: str) -> dict:
     oura = run(
-        """
-        MATCH (m:Member {id: $id})-[:HAS_OURA_READING]->(o:OuraReading)
-        RETURN o.date AS date, o.sleep_score AS sleep_score,
-               o.readiness_score AS readiness, o.total_sleep_h AS hours,
-               o.hrv_ms AS hrv ORDER BY o.date
-        """,
-        id=member_id,
+        "MATCH (m:Member {id: $id})-[:HAS_OURA_READING]->(o:OuraReading) "
+        "RETURN o.date AS date, o.sleep_score AS sleep_score, "
+        "o.readiness_score AS readiness ORDER BY o.date", id=member_id,
     )
     base = run(
         "MATCH (m:Member {id: $id}) RETURN m.sleep_hours_last_7_days AS hours, "
-        "m.oura_device AS device, m.hrv_ms AS hrv, m.resting_hr_bpm AS resting_hr",
-        id=member_id,
+        "m.hrv_ms AS hrv, m.resting_hr_bpm AS resting_hr", id=member_id,
+    )
+    hours = (base[0]["hours"] if base else None) or []
+    sleep_hours = None
+    if hours:
+        sleep_hours = {"avg_h": round(sum(hours) / len(hours), 1),
+                       "min_h": min(hours), "max_h": max(hours), "nights": len(hours)}
+    goal = run(
+        "MATCH (m:Member {id: $id})-[:HAS_GOAL]->(g) "
+        "WHERE toLower(g.text) CONTAINS 'sleep' RETURN g.text AS t LIMIT 1", id=member_id,
     )
     summ = longitudinal.summary(member_id)
-    return {"profile": _profile(member_id), "oura_daily": oura,
-            "oura_summary": summ.get("oura"),
-            "sleep_hours_last_7_days": base[0]["hours"] if base else None,
-            "device": base[0]["device"] if base else None,
-            "hrv_ms": base[0]["hrv"] if base else None,
-            "resting_hr_bpm": base[0]["resting_hr"] if base else None}
+    return {
+        "profile": _profile(member_id),
+        "sleep_hours_last_7_days": sleep_hours,    # avg/min/max or None
+        "oura": summ.get("oura"),                  # None when no wearable
+        "resting_hr_bpm": base[0]["resting_hr"] if base else None,
+        "hrv_ms": base[0]["hrv"] if base else None,
+        "sleep_goal": goal[0]["t"] if goal else None,
+    }
 
 
 def _retrieve_churn(member_id: str, _q: str) -> dict:
@@ -256,32 +263,54 @@ def run_copilot(member_id: str, question: str) -> tuple[dict, list[dict]]:
     return {"intent": final["intent"], "context": final["context"]}, trace.as_list()
 
 
-def _fallback_answer(question: str, result: dict) -> str:
-    """Deterministic grounded answer when no LLM key is present."""
-    c, intent = result["context"], result["intent"]
-    name = (c.get("profile") or {}).get("name", "the member")
+def _clean(obj):
+    """Drop null/empty values so the LLM never sees — or narrates — an absent field."""
+    if isinstance(obj, dict):
+        out = {k: _clean(v) for k, v in obj.items()}
+        return {k: v for k, v in out.items() if v not in (None, [], {}, "")}
+    if isinstance(obj, list):
+        return [_clean(v) for v in obj if v not in (None, "")]
+    return obj
+
+
+def _fallback_answer(intent: str, ctx: dict, name: str) -> str:
+    """Deterministic grounded answer (no-key path, and the data-thin short-circuit)."""
+    if intent == "sleep":
+        s = ctx.get("sleep_hours_last_7_days")
+        if s:
+            goal = f" (goal: {ctx['sleep_goal']})" if ctx.get("sleep_goal") else ""
+            return (f"{name} averaged {s['avg_h']} h over {s['nights']} nights "
+                    f"(range {s['min_h']}–{s['max_h']} h){goal}.")
+        if ctx.get("oura"):
+            o = ctx["oura"]
+            return (f"{name}'s Oura: avg sleep score {o['avg_sleep_score']}, "
+                    f"readiness {o['latest_readiness']} ({o['sleep_score_trend']}).")
     if intent == "adherence":
-        w = c.get("weekly_completion_pct") or []
-        latest = w[-1]["pct"] if w else "n/a"
-        return f"{name}'s adherence is trending {c.get('trend')}; latest week {latest}%."
-    if intent == "sleep" and c.get("oura_summary"):
-        o = c["oura_summary"]
-        return (f"{name}'s Oura: avg sleep score {o['avg_sleep_score']}, latest "
-                f"{o['latest_sleep_score']}, readiness {o['latest_readiness']} ({o['sleep_score_trend']}).")
-    if intent == "churn" and c.get("churn"):
-        ch = c["churn"]
+        a = ctx.get("weekly_completion_pct") or []
+        if a:
+            return f"{name}'s adherence is {ctx.get('trend', '—')}; latest week {a[-1]['pct']}%."
+    if intent == "churn" and ctx.get("churn"):
+        ch = ctx["churn"]
         return f"Churn risk is {ch.get('level')}: {'; '.join(ch.get('reasons') or [])}."
-    if intent == "brief" and c.get("brief"):
-        tasks = "; ".join(t["text"] for t in c["brief"].get("tasks", []) if t.get("text"))
+    if intent == "brief" and ctx.get("brief"):
+        tasks = "; ".join(t["text"] for t in ctx["brief"].get("tasks", []) if t.get("text"))
         return f"Morning brief for {name}: {tasks}"
-    return f"Retrieved {intent} data for {name}. (LLM key not set — showing raw grounding.)"
+    return f"Here's what's on file for {name}."
 
 
 def answer_stream(question: str, result: dict):
-    """Stream the grounded answer; deterministic single chunk if no key."""
-    if not llm.is_available():
-        yield _fallback_answer(question, result)
+    """Stream a grounded answer. Cleans the retrieved slice, returns a coherent
+    deterministic line when there is no relevant data (no slow LLM ramble), and
+    otherwise lets the LLM phrase ONLY what is present."""
+    ctx = _clean(result["context"])
+    intent = result["intent"]
+    name = (ctx.get("profile") or {}).get("name", "the member")
+
+    if not any(k != "profile" for k in ctx):
+        yield f"There's no {intent.replace('_', ' ')} data on file for {name} yet."
         return
-    user = json.dumps({"question": question, "intent": result["intent"],
-                       "member_data": result["context"]}, default=str)
-    yield from llm.stream(COPILOT_SYSTEM, user, max_tokens=500)
+    if not llm.is_available():
+        yield _fallback_answer(intent, ctx, name)
+        return
+    user = json.dumps({"question": question, "member_data": ctx}, default=str)
+    yield from llm.stream(COPILOT_SYSTEM, user, max_tokens=300)
