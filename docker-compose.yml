@@ -32,6 +32,8 @@ services:
       - ./data:/app/data:ro
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
+      - ./backend/evaluation:/app/evaluation
+      - fastembed-cache:/tmp/fastembed_cache   # persist the ONNX model across restarts
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       neo4j:
@@ -54,3 +56,4 @@ services:
 
 volumes:
   neo4j-data:
+  fastembed-cache:
