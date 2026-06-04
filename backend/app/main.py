@@ -9,10 +9,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
 from . import longitudinal, resolver, safety
+from .agents import copilot
 from .agents.generation import narration_stream, run_generation
 from .db import run
 from .graph.ingest import ingest_all
-from .schemas import GenerateRequest
+from .schemas import CopilotRequest, GenerateRequest
 
 app = FastAPI(title="Future KG Coaching Platform", version="0.1.0")
 
@@ -84,6 +85,29 @@ def generate_stream(req: GenerateRequest) -> StreamingResponse:
         yield "event: done\ndata: {}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.post("/copilot")
+def copilot_chat(req: CopilotRequest) -> StreamingResponse:
+    """Surface B: route → retrieve KG2 slice → stream a grounded answer (SSE)."""
+    def events():
+        result, trace = copilot.run_copilot(req.member_id, req.question)
+        yield f"event: context\ndata: {json.dumps({'result': result, 'trace': trace}, default=str)}\n\n"
+        for token in copilot.answer_stream(req.question, result):
+            yield f"event: answer\ndata: {json.dumps(token)}\n\n"
+        yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.get("/members/{member_id}/brief")
+def member_brief(member_id: str) -> dict:
+    return copilot._retrieve_brief(member_id, "")
+
+
+@app.get("/members/{member_id}/charts/{kind}")
+def member_chart(member_id: str, kind: str) -> dict:
+    return copilot.chart(member_id, kind)
 
 
 @app.get("/members/{member_id}/contraindicated")

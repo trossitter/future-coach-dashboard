@@ -17,6 +17,13 @@ class GenerateRequest(BaseModel):
     exclude_terms: list[str] = Field(default_factory=list)
 
 
+# --- Surface B: copilot ---
+
+class CopilotRequest(BaseModel):
+    member_id: str
+    question: str
+
+
 class Intent(BaseModel):
     """Planner output — the coach's prompt resolved onto graph concepts."""
     target_muscles: list[str] = Field(default_factory=list)
