@@ -21,11 +21,12 @@ from ..embeddings import embed_query
 from ..observability import Trace
 
 COPILOT_SYSTEM = (
-    "You are a fitness coach's AI copilot. Answer the coach's question in 1-3 short "
-    "sentences using ONLY the provided member_data (retrieved from the member's "
-    "knowledge graph). Cite the actual numbers and the most coach-relevant insight. "
-    "Never invent. Do NOT mention missing data, empty fields, JSON, or internal field "
-    "names — answer only with what is present. No preamble, no caveats."
+    "You are a fitness coach's copilot. The key facts are ALREADY shown to the coach "
+    "as labeled stats — do NOT repeat them. Add at most ONE short, plain-text sentence: "
+    "an interpretation or a concrete recommendation, grounded only in the provided "
+    "member_data. Plain text ONLY — no markdown, asterisks, bold, headings, bullets, or "
+    "preamble. Never invent or mention missing data. If there's nothing useful to add, "
+    "output nothing."
 )
 
 # (intent, keywords) — first match wins; order matters.
@@ -79,12 +80,66 @@ def _profile(member_id: str) -> dict:
         OPTIONAL MATCH (m)-[:HAS_GOAL]->(g:Goal)
         OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
         RETURN m.name AS name, m.tier AS tier, m.adherence_trend AS adherence_trend,
+               m.preferred_session_minutes AS preferred_session_minutes,
+               m.training_days_per_week AS training_days_per_week,
                collect(DISTINCT g.text) AS goals,
                collect(DISTINCT i.region) AS injuries
         """,
         id=member_id,
     )
     return rows[0] if rows else {}
+
+
+_ARROW = {"declining": "↓", "improving": "↑", "steady": "→"}
+
+
+def facts(intent: str, ctx: dict) -> list[dict]:
+    """The deterministic diagnostic — the key numbers a coach wants FIRST, straight
+    from the graph (the LLM never produces these). Order matters: most important first."""
+    p = ctx.get("profile") or {}
+    out: list[dict] = []
+
+    def add(label, value):
+        if value not in (None, "", [], {}):
+            out.append({"label": label, "value": value})
+
+    # session prescription signals — first, for "what length / how often" questions
+    if intent in ("general", "brief"):
+        if p.get("preferred_session_minutes"):
+            add("Preferred session", f"{p['preferred_session_minutes']} min")
+        add("Days / week", p.get("training_days_per_week"))
+
+    if intent == "adherence":
+        w = ctx.get("weekly_completion_pct") or []
+        if w:
+            add("Latest adherence", f"{w[-1]['pct']}% {_ARROW.get(ctx.get('trend'), '')}".strip())
+            add("Last 4 weeks", " · ".join(f"{x['pct']}%" for x in w[-4:]))
+    elif intent in ("general", "churn", "what_changed", "brief"):
+        a = ctx.get("adherence") or {}
+        if a.get("latest_pct") is not None:
+            add("Adherence", f"{a['latest_pct']}% {_ARROW.get(a.get('trend'), '')}".strip())
+
+    if intent == "sleep":
+        s = ctx.get("sleep_hours_last_7_days")
+        if s:
+            add("Avg sleep", f"{s['avg_h']} h")
+        add("Goal", ctx.get("sleep_goal"))
+        o = ctx.get("oura")
+        if o:
+            add("Oura sleep score", o.get("avg_sleep_score"))
+
+    if intent == "churn":
+        add("Churn risk", (ctx.get("churn") or {}).get("level"))
+    if intent == "brief":
+        b = ctx.get("brief") or {}
+        add("Churn risk", b.get("churn_level"))
+
+    if intent in ("general", "brief", "churn", "what_changed"):
+        inj = p.get("injuries") or []
+        if inj:
+            add("Injuries", ", ".join(inj))
+
+    return out
 
 
 def _retrieve_brief(member_id: str, _q: str) -> dict:
@@ -260,7 +315,9 @@ GRAPH = _build()
 def run_copilot(member_id: str, question: str) -> tuple[dict, list[dict]]:
     trace = Trace()
     final = GRAPH.invoke({"member_id": member_id, "question": question, "trace": trace})
-    return {"intent": final["intent"], "context": final["context"]}, trace.as_list()
+    ctx = final["context"]
+    return ({"intent": final["intent"], "context": ctx,
+             "facts": facts(final["intent"], _clean(ctx))}, trace.as_list())
 
 
 def _clean(obj):
@@ -313,4 +370,4 @@ def answer_stream(question: str, result: dict):
         yield _fallback_answer(intent, ctx, name)
         return
     user = json.dumps({"question": question, "member_data": ctx}, default=str)
-    yield from llm.stream(COPILOT_SYSTEM, user, max_tokens=300)
+    yield from llm.stream(COPILOT_SYSTEM, user, max_tokens=120)

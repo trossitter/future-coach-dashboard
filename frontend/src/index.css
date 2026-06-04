@@ -165,6 +165,10 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .msg.coach .msg-text { background: var(--ink); color: #fff; border-radius: 14px 14px 4px 14px; padding: 9px 14px; display: inline-block; font-size: 14px; }
 .msg.copilot .msg-text { font-size: 15px; line-height: 1.6; color: #2a2c33; display: block; }
 .intent { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue); display: block; margin-bottom: 4px; }
+.msg.copilot .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-bottom: 8px; }
+.fact { display: flex; flex-direction: column; gap: 1px; }
+.f-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
+.f-value { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* graph evidence */
 .graph-evidence { margin-top: 16px; border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: #eceef1; }

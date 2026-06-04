@@ -17,6 +17,10 @@ const CHARTS = [
   ["messages", "Messages"],
 ];
 
+// belt-and-suspenders: the model is told not to emit markdown, but strip it anyway
+const sanitize = (t: string) =>
+  t.replace(/\*+/g, "").replace(/_{2,}/g, "").replace(/^#+\s*/gm, "").trim();
+
 export function Copilot({ memberId }: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
@@ -28,12 +32,14 @@ export function Copilot({ memberId }: any) {
     setInput("");
     setBusy(true);
     setMessages((m) => [...m, { role: "coach", text: q },
-                            { role: "copilot", text: "", intent: "" }]);
+                            { role: "copilot", text: "", intent: "", facts: [] }]);
     await postSSE("/copilot", { member_id: memberId, question: q }, (ev, data) => {
       // pure updaters (no mutation) — mutating shared state doubled under StrictMode
       if (ev === "context") {
         setMessages((m) => m.map((msg, i) =>
-          i === m.length - 1 ? { ...msg, intent: data.result.intent } : msg));
+          i === m.length - 1
+            ? { ...msg, intent: data.result.intent, facts: data.result.facts || [] }
+            : msg));
       } else if (ev === "answer") {
         setMessages((m) => m.map((msg, i) =>
           i === m.length - 1 ? { ...msg, text: msg.text + data } : msg));
@@ -59,8 +65,22 @@ export function Copilot({ memberId }: any) {
       <div className="thread">
         {messages.map((m, i) => (
           <div key={i} className={"msg " + m.role}>
-            {m.role === "copilot" && m.intent && <span className="intent">{m.intent}</span>}
-            <span className="msg-text">{m.text || (busy && i === messages.length - 1 ? "…" : "")}</span>
+            {m.role === "copilot" && m.facts?.length > 0 && (
+              <div className="facts">
+                {m.facts.map((f: any, k: number) => (
+                  <div className="fact" key={k}>
+                    <span className="f-label">{f.label}</span>
+                    <span className="f-value">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(m.role === "coach" ? m.text : sanitize(m.text)) && (
+              <span className="msg-text">{m.role === "coach" ? m.text : sanitize(m.text)}</span>
+            )}
+            {busy && i === messages.length - 1 && !m.text && !m.facts?.length && (
+              <span className="msg-text">…</span>
+            )}
           </div>
         ))}
       </div>
