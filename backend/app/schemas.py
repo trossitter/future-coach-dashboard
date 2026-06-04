@@ -12,16 +12,22 @@ from pydantic import BaseModel, Field
 
 class GenerateRequest(BaseModel):
     member_id: str
-    prompt: str = Field(description="Coach's free-text request")
+    # max_length is a request-side guard (rejected with 422 before any token is
+    # spent on the LLM); the no-min/max note in the module docstring is about the
+    # structured-OUTPUT schemas below, not inbound request bodies.
+    prompt: str = Field(description="Coach's free-text request", max_length=600)
     time_minutes: int = 45
     exclude_terms: list[str] = Field(default_factory=list)
+    # ad-hoc, this-session constraints resolved via the clarify loop:
+    avoid_joints: list[str] = Field(default_factory=list)   # confirmed avoid
+    ignore_joints: list[str] = Field(default_factory=list)  # coach said it's fine
 
 
 # --- Surface B: copilot ---
 
 class CopilotRequest(BaseModel):
     member_id: str
-    question: str
+    question: str = Field(min_length=1, max_length=500)
 
 
 class Intent(BaseModel):

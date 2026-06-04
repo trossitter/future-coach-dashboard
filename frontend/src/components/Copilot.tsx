@@ -86,7 +86,7 @@ export function Copilot({ memberId }: any) {
       </div>
 
       <div className="row">
-        <input value={input} placeholder="Ask about this member…"
+        <input value={input} placeholder="Ask about this member…" maxLength={500}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && ask(input)} />
         <button onClick={() => ask(input)} disabled={busy}>Ask</button>

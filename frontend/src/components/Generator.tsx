@@ -40,7 +40,7 @@ export function Generator({ memberId, memberName, injuries }: any) {
   return (
     <div className="panel">
       <h2>Workout Generator</h2>
-      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
+      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} maxLength={600}
         placeholder={`Describe the session for ${memberName || "this member"} — e.g. "full-body, pec isolation, 45 min" or "lower body, easy on the knee"`} />
       <div className="row">
         <label>Time
