@@ -128,11 +128,18 @@ def copilot_chat(req: CopilotRequest) -> StreamingResponse:
     def events():
         result, trace = copilot.run_copilot(req.member_id, req.question)
         yield f"event: context\ndata: {json.dumps({'result': result, 'trace': trace}, default=str)}\n\n"
-        for token in copilot.answer_stream(req.question, result):
+        for token in copilot.answer_stream(req.question, result, req.history):
             yield f"event: answer\ndata: {json.dumps(token)}\n\n"
         yield "event: done\ndata: {}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.get("/members/{member_id}/chat")
+def member_chat(member_id: str) -> dict:
+    """PRD: the coach can see past chat history + images (attachment captions)."""
+    msgs = copilot.chat_history(member_id)
+    return {"member_id": member_id, "count": len(msgs), "messages": msgs}
 
 
 @app.get("/members/{member_id}/brief")

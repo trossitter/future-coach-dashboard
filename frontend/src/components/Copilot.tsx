@@ -26,14 +26,20 @@ export function Copilot({ memberId }: any) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [chart, setChart] = useState<any>(null);
+  const [log, setLog] = useState<any[] | null>(null);   // real past chat thread
 
   async function ask(q: string) {
     if (!q.trim() || !memberId) return;
     setInput("");
     setBusy(true);
+    // prior turns → context for follow-ups ("what about her sleep?"); the answer
+    // still comes from the freshly-retrieved member slice, not the conversation.
+    const history = messages
+      .filter((m) => m.text)
+      .map((m) => ({ role: m.role, text: m.role === "coach" ? m.text : sanitize(m.text) }));
     setMessages((m) => [...m, { role: "coach", text: q },
                             { role: "copilot", text: "", intent: "", facts: [] }]);
-    await postSSE("/copilot", { member_id: memberId, question: q }, (ev, data) => {
+    await postSSE("/copilot", { member_id: memberId, question: q, history }, (ev, data) => {
       // pure updaters (no mutation) — mutating shared state doubled under StrictMode
       if (ev === "context") {
         setMessages((m) => m.map((msg, i) =>
@@ -52,9 +58,38 @@ export function Copilot({ memberId }: any) {
     setChart(await getJSON(`/members/${memberId}/charts/${kind}`));
   }
 
+  async function toggleLog() {
+    if (log) { setLog(null); return; }
+    const d = await getJSON(`/members/${memberId}/chat`);
+    setLog(d.messages || []);
+  }
+
   return (
     <div className="panel">
-      <h2>AI Copilot</h2>
+      <div className="panel-head">
+        <h2>AI Copilot</h2>
+        <button className="link" onClick={toggleLog}>
+          {log ? "Hide chat history" : "Chat history"}
+        </button>
+      </div>
+
+      {log && (
+        <div className="chatlog">
+          {log.length === 0 && <div className="muted">No messages on file.</div>}
+          {log.map((m, i) => (
+            <div key={i} className={"logmsg " + m.from}>
+              <div className="log-meta">{m.from} · {m.ts?.slice(0, 10)}</div>
+              {m.text && <div className="log-text">{m.text}</div>}
+              {m.has_attachment && m.attachments?.map((cap: string, k: number) => (
+                <div className="attachment" key={k}>
+                  <span className="att-thumb" aria-hidden>▧</span>
+                  <span className="att-cap">{cap}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="quick">
         {QUICK.map((q) => (

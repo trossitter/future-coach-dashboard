@@ -24,7 +24,10 @@ COPILOT_SYSTEM = (
     "You are a fitness coach's copilot. The key facts are ALREADY shown to the coach "
     "as labeled stats — do NOT repeat them. Add at most ONE short, plain-text sentence: "
     "an interpretation or a concrete recommendation, grounded only in the provided "
-    "member_data. Plain text ONLY — no markdown, asterisks, bold, headings, bullets, or "
+    "member_data. The `conversation` field (if present) is the prior turns, for "
+    "resolving follow-ups like 'what about her sleep?' — use it ONLY to understand what "
+    "the coach means; every claim must still come from member_data, never from the "
+    "conversation. Plain text ONLY — no markdown, asterisks, bold, headings, bullets, or "
     "preamble. Never invent or mention missing data. If there's nothing useful to add, "
     "output nothing."
 )
@@ -265,6 +268,23 @@ _RETRIEVERS = {
 }
 
 
+# --- chat history (PRD: the coach can see past chat history + images) ---------
+
+def chat_history(member_id: str) -> list[dict]:
+    """The member's real message thread, oldest first — including attachment
+    captions (synthetic placeholders; no image bytes in this dataset)."""
+    return run(
+        """
+        MATCH (m:Member {id: $id})-[:SAID]->(c:ChatMessage)
+        RETURN c.from AS from, c.ts AS ts, c.text AS text,
+               coalesce(c.has_attachment, false) AS has_attachment,
+               coalesce(c.attachment_captions, []) AS attachments
+        ORDER BY c.ts
+        """,
+        id=member_id,
+    )
+
+
 # --- charts (structured series for the frontend) -----------------------------
 
 def chart(member_id: str, kind: str) -> dict:
@@ -355,10 +375,11 @@ def _fallback_answer(intent: str, ctx: dict, name: str) -> str:
     return f"Here's what's on file for {name}."
 
 
-def answer_stream(question: str, result: dict):
+def answer_stream(question: str, result: dict, history: list[dict] | None = None):
     """Stream a grounded answer. Cleans the retrieved slice, returns a coherent
     deterministic line when there is no relevant data (no slow LLM ramble), and
-    otherwise lets the LLM phrase ONLY what is present."""
+    otherwise lets the LLM phrase ONLY what is present. `history` (recent prior
+    turns) gives the model context to resolve follow-ups — never new facts."""
     ctx = _clean(result["context"])
     intent = result["intent"]
     name = (ctx.get("profile") or {}).get("name", "the member")
@@ -369,5 +390,9 @@ def answer_stream(question: str, result: dict):
     if not llm.is_available():
         yield _fallback_answer(intent, ctx, name)
         return
-    user = json.dumps({"question": question, "member_data": ctx}, default=str)
-    yield from llm.stream(COPILOT_SYSTEM, user, max_tokens=120)
+    payload = {"question": question, "member_data": ctx}
+    if history:
+        # last few turns only, each trimmed — context for follow-ups, not a token sink
+        payload["conversation"] = [{"role": h.get("role"), "text": (h.get("text") or "")[:280]}
+                                   for h in history[-6:]]
+    yield from llm.stream(COPILOT_SYSTEM, json.dumps(payload, default=str), max_tokens=120)

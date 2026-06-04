@@ -28,6 +28,9 @@ class GenerateRequest(BaseModel):
 class CopilotRequest(BaseModel):
     member_id: str
     question: str = Field(min_length=1, max_length=500)
+    # prior turns ({role, text}) so the copilot can resolve follow-ups; used for
+    # context only — answers stay grounded in the retrieved member slice.
+    history: list[dict] = Field(default_factory=list)
 
 
 class Intent(BaseModel):
