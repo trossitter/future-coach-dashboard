@@ -21,9 +21,32 @@ from .config import settings
 MODEL = settings.claude_model
 T = TypeVar("T", bound=BaseModel)
 
+# --- token budget -----------------------------------------------------------
+# Cumulative input+output tokens spent this process. Checked BEFORE each call
+# (so we stop querying once over) and incremented AFTER (so the in-flight call
+# completes). One call may overshoot the ceiling slightly; that's intentional.
+_tokens_used = 0
+
+
+def tokens_used() -> int:
+    return _tokens_used
+
+
+def budget_exhausted() -> bool:
+    return settings.llm_token_budget > 0 and _tokens_used >= settings.llm_token_budget
+
+
+def _account(usage) -> None:
+    global _tokens_used
+    if usage is not None:
+        _tokens_used += (getattr(usage, "input_tokens", 0) or 0) + \
+                        (getattr(usage, "output_tokens", 0) or 0)
+
 
 def is_available() -> bool:
-    return bool(settings.anthropic_api_key)
+    """True only when there's a key AND we're under the token budget — so every
+    LLM path degrades to the deterministic graph output once the budget is hit."""
+    return bool(settings.anthropic_api_key) and not budget_exhausted()
 
 
 @lru_cache(maxsize=1)
@@ -49,6 +72,7 @@ def parse(system: str, user: str, schema: type[T], *, max_tokens: int = 2000) ->
         messages=[{"role": "user", "content": user}],
         output_format=schema,
     )
+    _account(getattr(resp, "usage", None))
     return resp.parsed_output
 
 
@@ -61,6 +85,7 @@ def complete(system: str, user: str, *, max_tokens: int = 1500) -> str | None:
         system=_system(system),
         messages=[{"role": "user", "content": user}],
     )
+    _account(getattr(resp, "usage", None))
     return "".join(b.text for b in resp.content if b.type == "text")
 
 
@@ -75,3 +100,4 @@ def stream(system: str, user: str, *, max_tokens: int = 1500) -> Iterator[str]:
         messages=[{"role": "user", "content": user}],
     ) as s:
         yield from s.text_stream
+        _account(getattr(s.get_final_message(), "usage", None))

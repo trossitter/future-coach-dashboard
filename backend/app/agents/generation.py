@@ -289,8 +289,13 @@ NARRATOR_SYSTEM = (
 
 def narration_stream(prompt: str, result: dict):
     """Stream the coach-facing narration, decoupled from the blocking plan so the
-    structured plan returns fast and prose streams after. Empty if no key."""
+    structured plan returns fast and prose streams after. Empty if no key; an
+    on-brand cooldown line when the token budget is spent (the plan itself is
+    fully built from the graph regardless)."""
     if not llm.is_available():
+        if llm.budget_exhausted():
+            yield ("That's a wrap — the plan above is built straight from the graph, "
+                   "but we've hit the token cap so AI narration is on cooldown.")
         return
     plan_dict = result["plan"]
     names = {s: [p["name"] for p in plan_dict.get(s, [])]

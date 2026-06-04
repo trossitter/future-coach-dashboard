@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # + phrasing — Haiku is the right fit for the ~5s target and token efficiency.
     # Override with CLAUDE_MODEL=claude-opus-4-8 (or sonnet-4-6) for more polish.
     claude_model: str = "claude-haiku-4-5"
+    # Soft ceiling on cumulative LLM tokens (input+output) for this process. 0 =
+    # unlimited. When hit, every LLM path degrades to the deterministic graph
+    # output + an on-brand "cooldown" note — the graph facts never depend on it.
+    llm_token_budget: int = 0
 
 
 settings = Settings()

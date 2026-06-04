@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from . import longitudinal, resolver, safety
+from . import llm, longitudinal, resolver, safety
 from .agents import copilot
 from .agents.generation import narration_stream, run_generation
 from .db import run
@@ -44,6 +44,18 @@ def health() -> dict:
 @app.post("/ingest")
 def ingest() -> dict:
     return ingest_all()
+
+
+@app.get("/usage")
+def usage() -> dict:
+    """LLM token accounting + budget state (the graceful-degradation guard)."""
+    from .config import settings
+    return {
+        "tokens_used": llm.tokens_used(),
+        "token_budget": settings.llm_token_budget or None,
+        "budget_exhausted": llm.budget_exhausted(),
+        "llm_active": llm.is_available(),
+    }
 
 
 @app.get("/members")

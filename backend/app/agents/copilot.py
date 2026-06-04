@@ -449,7 +449,15 @@ def answer_stream(question: str, result: dict, history: list[dict] | None = None
         yield f"There's no {intent.replace('_', ' ')} data on file for {name} yet."
         return
     if not llm.is_available():
-        yield _fallback_answer(intent, ctx, name)
+        # Out of tokens vs. no key are both "no LLM" — but say so differently. The
+        # facts above are straight from the graph either way; only commentary stops.
+        if llm.budget_exhausted():
+            yield ("Cooldown time — we've hit the session's token cap, so I'm "
+                   "racking the weights on live commentary for now. The stats above "
+                   "came straight from the graph (no AI needed); catch your breath "
+                   "and come back in a bit.")
+        else:
+            yield _fallback_answer(intent, ctx, name)
         return
     payload = {"question": question, "member_data": ctx}
     if history:
