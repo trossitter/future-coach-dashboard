@@ -103,11 +103,11 @@ export default function App() {
               <section className="surface">
                 <div className="section-label">Working with</div>
                 <h2 className="member-headline">{sel.name}</h2>
-                <Generator memberId={sel.id} memberName={sel.name}
+                <Generator key={sel.id} memberId={sel.id} memberName={sel.name}
                   injuries={(sel.injuries || []).filter(Boolean)} />
               </section>
               <section className="surface">
-                <Copilot memberId={sel.id} />
+                <Copilot key={sel.id} memberId={sel.id} />
               </section>
             </>
           )}

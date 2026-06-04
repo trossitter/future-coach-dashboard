@@ -18,9 +18,7 @@ function Section({ title, items }: { title: string; items: any[] }) {
 }
 
 export function Generator({ memberId, memberName, injuries }: any) {
-  const [prompt, setPrompt] = useState(
-    "build lower-body strength without aggravating my knee",
-  );
+  const [prompt, setPrompt] = useState("");
   const [time, setTime] = useState(45);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -42,7 +40,8 @@ export function Generator({ memberId, memberName, injuries }: any) {
   return (
     <div className="panel">
       <h2>Workout Generator</h2>
-      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} />
+      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
+        placeholder={`Describe the session for ${memberName || "this member"} — e.g. "full-body, pec isolation, 45 min" or "lower body, easy on the knee"`} />
       <div className="row">
         <label>Time
           <input type="number" value={time} min={15} max={90}
