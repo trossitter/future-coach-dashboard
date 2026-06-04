@@ -3,9 +3,9 @@ the copilot get wired in at later build steps.
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
-from . import safety
+from . import resolver, safety
 from .db import run
 from .graph.ingest import ingest_all
 
@@ -48,3 +48,25 @@ def why(member_id: str, exercise_id: str) -> dict:
         "excluded": len(rows) > 0,
         "reasons": rows,
     }
+
+
+@app.get("/members/{member_id}/exercises/{exercise_id}/alternatives")
+def alternatives(member_id: str, exercise_id: str, limit: int = 5) -> dict:
+    rows = safety.alternatives(member_id, exercise_id, limit)
+    return {"member_id": member_id, "exercise_id": exercise_id,
+            "count": len(rows), "alternatives": rows}
+
+
+@app.get("/resolve")
+def resolve(text: str, label: str = "Muscle") -> dict:
+    """3-pass concept resolution of free text onto a graph node label."""
+    try:
+        return resolver.resolve(text, label)
+    except resolver.UnknownLabel as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/search/exercises")
+def search_exercises(q: str, k: int = 5) -> dict:
+    """Semantic (vector) search over the Exercise embedding index."""
+    return {"query": q, "results": resolver.semantic_exercise_search(q, k)}

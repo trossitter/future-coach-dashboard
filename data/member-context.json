@@ -1,0 +1,112 @@
+{
+  "_note": "Synthetic, fictional sample member for the take-home. No real person or PHI. Use only as seed data.",
+  "profile": {
+    "id": "mbr_01HX9JORDAN",
+    "name": "Jordan Rivera",
+    "age": 41,
+    "sex": "female",
+    "height_cm": 168,
+    "weight_kg": 71.2,
+    "timezone": "America/Los_Angeles",
+    "member_since": "2024-09-15",
+    "coach_id": "coach_01HXSAM",
+    "tier": "1:1 Coaching"
+  },
+  "goals": [
+    { "id": "goal_strength", "text": "Build lower-body strength", "priority": 1, "target_date": "2026-09-01" },
+    { "id": "goal_knee", "text": "Return to pain-free squatting after left-knee flare-up", "priority": 1, "target_date": "2026-07-15" },
+    { "id": "goal_sleep", "text": "Average 7+ hours of sleep on weeknights", "priority": 2, "target_date": null }
+  ],
+  "preferences": {
+    "preferred_session_minutes": 50,
+    "training_days_per_week": 4,
+    "preferred_days": ["Mon", "Wed", "Thu", "Sat"],
+    "dislikes": ["Deadlift", "Burpees"],
+    "notes": "Prefers dumbbell and kettlebell work; trains at home. Dislikes high-impact jumping."
+  },
+  "equipment_available": [
+    "Dumbbell",
+    "Kettlebell",
+    "Yoga Mat",
+    "Resistance Band - Loop",
+    "Flat Bench"
+  ],
+  "injuries": [
+    {
+      "id": "inj_knee_left",
+      "region": "left knee",
+      "joint": "knee",
+      "status": "recovering",
+      "severity": "mild",
+      "since": "2026-05-10",
+      "notes": "Patellofemoral pain after a hiking trip. Cleared for low-impact loading; avoid deep knee flexion under load and plyometrics.",
+      "snomedct_hint": "Look up patellofemoral pain syndrome / knee joint structures in SNOMED CT via NCI EVS."
+    }
+  ],
+  "workout_history": [
+    { "date": "2026-06-03", "title": "Lower Body - Bands & DB", "planned": true, "completed": true, "duration_min": 28, "rpe": 6, "exercises": ["Goblet Squat (box-supported)", "Hip Thrust", "Banded Lateral Walk"] },
+    { "date": "2026-06-01", "title": "Upper Body Push", "planned": true, "completed": true, "duration_min": 31, "rpe": 7, "exercises": ["DB Floor Press", "Half-Kneeling DB Press", "Band Pull-Apart"] },
+    { "date": "2026-05-29", "title": "Full Body", "planned": true, "completed": false, "duration_min": 0, "rpe": null, "exercises": [] },
+    { "date": "2026-05-27", "title": "Lower Body", "planned": true, "completed": true, "duration_min": 26, "rpe": 6, "exercises": ["Step-Up", "KB Romanian Deadlift", "Wall Sit"] }
+  ],
+  "adherence": {
+    "weekly_completion_pct": [
+      { "week_of": "2026-05-12", "pct": 100 },
+      { "week_of": "2026-05-19", "pct": 100 },
+      { "week_of": "2026-05-26", "pct": 75 },
+      { "week_of": "2026-06-02", "pct": 50 }
+    ],
+    "trend": "declining"
+  },
+  "biomarkers": {
+    "resting_hr_bpm": 58,
+    "hrv_ms": 47,
+    "sleep_hours_last_7_days": [6.1, 5.4, 7.2, 6.0, 5.1, 7.8, 6.3],
+    "weight_trend_kg": [
+      { "date": "2026-05-05", "kg": 72.4 },
+      { "date": "2026-05-19", "kg": 71.9 },
+      { "date": "2026-06-02", "kg": 71.2 }
+    ]
+  },
+  "labs": {
+    "blood_panel": {
+      "date": "2026-04-20",
+      "ldl_mg_dl": 118,
+      "hdl_mg_dl": 61,
+      "triglycerides_mg_dl": 96,
+      "hba1c_pct": 5.3,
+      "vitamin_d_ng_ml": 28,
+      "ferritin_ng_ml": 41,
+      "crp_mg_l": 1.2
+    },
+    "dexa_scan": {
+      "date": "2026-03-30",
+      "body_fat_pct": 29.4,
+      "lean_mass_kg": 47.1,
+      "fat_mass_kg": 21.0,
+      "bone_density_z_score": 0.4,
+      "visceral_fat_cm2": 78
+    }
+  },
+  "chat_history": [
+    { "ts": "2026-06-03T18:42:00-07:00", "from": "member", "text": "Knocked out the lower body session! Knee felt okay with the box squats." },
+    { "ts": "2026-06-03T19:05:00-07:00", "from": "coach", "text": "Love it — that's the green light we wanted. How's the knee this morning vs. after?" },
+    { "ts": "2026-05-30T08:12:00-07:00", "from": "member", "text": "Skipped Thursday, work blew up and I was wiped. Sorry!" },
+    { "ts": "2026-05-22T07:50:00-07:00", "from": "member", "text": "Still no barbell at home btw — only DBs and a kettlebell.", "attachments": [{ "type": "image", "caption": "Home setup photo (synthetic placeholder)" }] }
+  ],
+  "coach_brief": {
+    "generated_for": "2026-06-04",
+    "morning_tasks": [
+      { "type": "celebrate", "text": "Congratulate Jordan on completing yesterday's lower-body session — first pain-free squat work since the knee flare-up." },
+      { "type": "review_risk", "text": "Check churn risk: adherence dropped 100% → 50% over the last two weeks." }
+    ],
+    "churn_risk": {
+      "level": "elevated",
+      "reasons": [
+        "Weekly adherence fell from 100% to 50% over 2 weeks",
+        "One skipped session with a fatigue/work explanation",
+        "Login frequency down vs. prior month"
+      ]
+    }
+  }
+}

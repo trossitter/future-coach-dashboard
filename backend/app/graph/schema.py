@@ -21,20 +21,30 @@ CONSTRAINTS = [
     "CREATE CONSTRAINT joint_name IF NOT EXISTS FOR (n:Joint) REQUIRE n.name IS UNIQUE",
     "CREATE CONSTRAINT pattern_name IF NOT EXISTS FOR (n:MovementPattern) REQUIRE n.name IS UNIQUE",
     "CREATE CONSTRAINT equipment_name IF NOT EXISTS FOR (n:Equipment) REQUIRE n.name IS UNIQUE",
-    "CREATE CONSTRAINT goal_name IF NOT EXISTS FOR (n:Goal) REQUIRE n.name IS UNIQUE",
+    "CREATE CONSTRAINT goal_id IF NOT EXISTS FOR (n:Goal) REQUIRE n.id IS UNIQUE",
+    "CREATE CONSTRAINT injury_id IF NOT EXISTS FOR (n:Injury) REQUIRE n.id IS UNIQUE",
 ]
 
-VECTOR_INDEX = f"""
-CREATE VECTOR INDEX exercise_embedding IF NOT EXISTS
-FOR (e:Exercise) ON (e.embedding)
-OPTIONS {{ indexConfig: {{
-    `vector.dimensions`: {EMBED_DIM},
-    `vector.similarity_function`: 'cosine'
-}} }}
-"""
+
+def _vector_index(name: str, label: str) -> str:
+    return f"""
+    CREATE VECTOR INDEX {name} IF NOT EXISTS
+    FOR (n:{label}) ON (n.embedding)
+    OPTIONS {{ indexConfig: {{
+        `vector.dimensions`: {EMBED_DIM},
+        `vector.similarity_function`: 'cosine'
+    }} }}
+    """
+
+
+VECTOR_INDEXES = [
+    _vector_index("exercise_embedding", "Exercise"),   # KG1 semantic search
+    _vector_index("chat_embedding", "ChatMessage"),    # KG2 copilot retrieval
+]
 
 
 def apply_schema() -> None:
     for stmt in CONSTRAINTS:
         run(stmt)
-    run(VECTOR_INDEX)
+    for stmt in VECTOR_INDEXES:
+        run(stmt)

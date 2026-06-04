@@ -1,0 +1,48 @@
+[
+  {
+    "_note": "Synthetic test member (Dune-themed). No real person or PHI. Journey stage: established / happy-path.",
+    "profile": { "id": "mbr_duncan", "name": "Duncan Idaho", "age": 38, "sex": "male", "height_cm": 183, "weight_kg": 88.0, "timezone": "America/Los_Angeles", "member_since": "2024-03-01", "coach_id": "coach_01HXSAM", "tier": "1:1 Coaching" },
+    "goals": [ { "id": "goal_strength_d", "text": "Add strength across the main lifts", "priority": 1, "target_date": "2026-12-01" } ],
+    "preferences": { "preferred_session_minutes": 60, "training_days_per_week": 5, "preferred_days": ["Mon", "Tue", "Thu", "Fri", "Sat"], "dislikes": [], "notes": "Full home + commercial gym access. No restrictions." },
+    "equipment_available": ["Barbell", "Plate", "Rack", "Dumbbell", "Kettlebell", "Flat Bench", "Adjustable Bench - Incline", "Pull-Up Bar", "Cable Resistance Machine", "Box", "Medicine Ball", "Jump Rope"],
+    "injuries": [],
+    "workout_history": [
+      { "date": "2026-06-03", "title": "Lower Power", "planned": true, "completed": true, "duration_min": 58, "rpe": 8, "exercises": ["Back Squat", "Hip Thrust"] },
+      { "date": "2026-06-01", "title": "Upper Power", "planned": true, "completed": true, "duration_min": 61, "rpe": 8, "exercises": ["Bench Press", "Pull-Up"] }
+    ],
+    "adherence": { "weekly_completion_pct": [ { "week_of": "2026-05-12", "pct": 100 }, { "week_of": "2026-05-19", "pct": 100 }, { "week_of": "2026-05-26", "pct": 100 }, { "week_of": "2026-06-02", "pct": 100 } ], "trend": "steady" },
+    "biomarkers": { "resting_hr_bpm": 52, "hrv_ms": 68, "sleep_hours_last_7_days": [7.5, 7.8, 7.2, 8.0, 7.6, 7.9, 7.4], "weight_trend_kg": [ { "date": "2026-05-05", "kg": 88.4 }, { "date": "2026-06-02", "kg": 88.0 } ] },
+    "chat_history": [ { "ts": "2026-06-03T20:00:00-07:00", "from": "member", "text": "Squats felt great, ready to push the weight up next week." } ],
+    "coach_brief": { "generated_for": "2026-06-04", "morning_tasks": [ { "type": "progress", "text": "Duncan is consistent and recovered — consider a small load increase." } ], "churn_risk": { "level": "low", "reasons": ["100% adherence sustained 4 weeks"] } }
+  },
+  {
+    "_note": "Synthetic test member (Dune-themed). Journey stage: over-constrained edge case (graceful degradation).",
+    "profile": { "id": "mbr_alia", "name": "Alia Atreides", "age": 29, "sex": "female", "height_cm": 165, "weight_kg": 60.0, "timezone": "America/Los_Angeles", "member_since": "2025-11-10", "coach_id": "coach_01HXSAM", "tier": "1:1 Coaching" },
+    "goals": [ { "id": "goal_mobility_a", "text": "Rebuild capacity around multiple recovering injuries", "priority": 1, "target_date": null } ],
+    "preferences": { "preferred_session_minutes": 30, "training_days_per_week": 3, "preferred_days": ["Tue", "Thu", "Sat"], "dislikes": ["Burpees"], "notes": "Minimal home equipment; managing several injuries." },
+    "equipment_available": ["Yoga Mat", "Resistance Band - Loop"],
+    "injuries": [
+      { "id": "inj_alia_knee", "region": "right knee", "joint": "knee", "status": "recovering", "severity": "moderate", "since": "2026-03-01", "notes": "Avoid deep knee flexion under load and plyometrics." },
+      { "id": "inj_alia_shoulder", "region": "right shoulder", "joint": "shoulder", "status": "recovering", "severity": "moderate", "since": "2026-04-15", "notes": "Rotator cuff irritation; avoid overhead loading." },
+      { "id": "inj_alia_lumbar", "region": "lower back", "joint": "lumbar spine", "status": "flaring", "severity": "moderate", "since": "2026-05-20", "notes": "Avoid loaded spinal flexion." }
+    ],
+    "workout_history": [ { "date": "2026-06-02", "title": "Gentle Mobility", "planned": true, "completed": true, "duration_min": 22, "rpe": 3, "exercises": ["Banded Walk", "Dead Bug"] } ],
+    "adherence": { "weekly_completion_pct": [ { "week_of": "2026-05-19", "pct": 67 }, { "week_of": "2026-05-26", "pct": 67 }, { "week_of": "2026-06-02", "pct": 33 } ], "trend": "declining" },
+    "biomarkers": { "resting_hr_bpm": 64, "hrv_ms": 41, "sleep_hours_last_7_days": [6.0, 5.5, 6.2, 5.8, 6.5, 7.0, 6.1] },
+    "chat_history": [ { "ts": "2026-06-02T09:00:00-07:00", "from": "member", "text": "Back is flaring again, only got through part of the session." } ],
+    "coach_brief": { "generated_for": "2026-06-04", "morning_tasks": [ { "type": "review_risk", "text": "Multiple active injuries + declining adherence — keep load very conservative." } ], "churn_risk": { "level": "elevated", "reasons": ["Adherence 67% to 33%", "Three active injuries"] } }
+  },
+  {
+    "_note": "Synthetic test member (Dune-themed). Journey stage: cold-start / brand-new member (sparse data).",
+    "profile": { "id": "mbr_paul", "name": "Paul Atreides", "age": 22, "sex": "male", "height_cm": 178, "weight_kg": 70.0, "timezone": "America/Los_Angeles", "member_since": "2026-06-02", "coach_id": "coach_01HXSAM", "tier": "1:1 Coaching" },
+    "goals": [ { "id": "goal_general_p", "text": "Get started with consistent training", "priority": 1, "target_date": null } ],
+    "preferences": { "preferred_session_minutes": 40, "training_days_per_week": 3, "preferred_days": ["Mon", "Wed", "Fri"], "dislikes": [], "notes": "New member; still establishing a baseline." },
+    "equipment_available": ["Dumbbell", "Flat Bench", "Yoga Mat"],
+    "injuries": [],
+    "workout_history": [],
+    "adherence": { "weekly_completion_pct": [], "trend": "unknown" },
+    "biomarkers": {},
+    "chat_history": [ { "ts": "2026-06-02T12:00:00-07:00", "from": "member", "text": "Just signed up — not sure where to start, never trained seriously before." } ],
+    "coach_brief": { "generated_for": "2026-06-04", "morning_tasks": [ { "type": "onboard", "text": "Welcome Paul and set an easy first session; we have no history yet." } ], "churn_risk": { "level": "unknown", "reasons": ["New member — insufficient data"] } }
+  }
+]

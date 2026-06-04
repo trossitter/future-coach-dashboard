@@ -8,13 +8,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ..aliases import ALIASES
 from ..config import settings
 from ..db import run
+from ..embeddings import embed
+from .anatomy import build_anatomy, link_injury_contraindications
+from .member_ingest import ingest_member_context
 from .schema import apply_schema
 
 
-def _load(name: str) -> list[dict]:
+def _load(name: str):
     return json.loads((Path(settings.data_dir) / name).read_text())
+
+
+def _exists(name: str) -> bool:
+    return (Path(settings.data_dir) / name).exists()
 
 
 def ingest_exercises(exercises: list[dict]) -> int:
@@ -56,67 +64,62 @@ def ingest_exercises(exercises: list[dict]) -> int:
     return len(exercises)
 
 
-def ingest_members(members: list[dict]) -> int:
-    for m in members:
+def embed_exercises(exercises: list[dict]) -> int:
+    """Populate the Exercise vector index. Embedding text fuses name + targeted
+    muscles + movement pattern so semantic search ('pec isolation') lands on the
+    right exercises even when the words never appear in the name."""
+    texts = [
+        f"{e['name']}. targets {', '.join(e['muscle_groups'])}. "
+        f"movement: {', '.join(e['movement_patterns'])}."
+        for e in exercises
+    ]
+    vecs = embed(texts)
+    run(
+        """
+        UNWIND $rows AS r
+        MATCH (e:Exercise {id: r.id})
+        SET e.embedding = r.vec
+        """,
+        rows=[{"id": e["id"], "vec": v} for e, v in zip(exercises, vecs)],
+    )
+    return len(exercises)
+
+
+def apply_aliases() -> int:
+    """Attach gym-vocabulary altLabels to concept nodes (SKOS-style)."""
+    n = 0
+    for label, mapping in ALIASES.items():
         run(
-            """
-            MERGE (mem:Member {id: $id})
-            SET mem.name = $name,
-                mem.experience_level = $experience_level
-            WITH mem
-            FOREACH (g IN $goals |
-                MERGE (n:Goal {name: g}) MERGE (mem)-[:HAS_GOAL]->(n))
-            FOREACH (eq IN $available_equipment |
-                MERGE (n:Equipment {name: eq}) MERGE (mem)-[:HAS_ACCESS_TO]->(n))
-            FOREACH (sig IN $chat_signals |
-                CREATE (mem)-[:SAID]->(:ChatSignal {text: sig}))
+            f"""
+            UNWIND $rows AS r
+            MATCH (n:{label} {{name: r.name}})
+            SET n.alt_labels = r.alts
             """,
-            id=m["id"],
-            name=m["name"],
-            experience_level=m.get("experience_level", "unknown"),
-            goals=m.get("goals", []),
-            available_equipment=m.get("available_equipment", []),
-            chat_signals=m.get("chat_signals", []),
+            rows=[{"name": k, "alts": v} for k, v in mapping.items()],
         )
-        # Injuries -> affected joints (the edge the safety filter traverses).
-        for inj in m.get("injuries", []):
-            run(
-                """
-                MATCH (mem:Member {id: $id})
-                MERGE (i:Injury {name: $name})
-                SET i.side = $side, i.severity = $severity, i.onset = $onset
-                MERGE (mem)-[:HAS_INJURY]->(i)
-                WITH i
-                FOREACH (j IN $joints |
-                    MERGE (n:Joint {name: j}) MERGE (i)-[:AFFECTS]->(n))
-                """,
-                id=m["id"],
-                name=inj["name"],
-                side=inj.get("side"),
-                severity=inj.get("severity"),
-                onset=inj.get("onset"),
-                joints=inj.get("affects_joints", []),
-            )
-        # Workout history -> adherence / longitudinal signal.
-        for s in m.get("sessions", []):
-            run(
-                """
-                MATCH (mem:Member {id: $id})
-                CREATE (mem)-[:PERFORMED]->(sess:Session {
-                    date: $date, planned: $planned,
-                    completed: $completed, adherence: $adherence})
-                """,
-                id=m["id"],
-                date=s["date"],
-                planned=s.get("planned"),
-                completed=s.get("completed"),
-                adherence=s.get("adherence"),
-            )
-    return len(members)
+        n += len(mapping)
+    return n
+
+
+def ingest_members() -> list[str]:
+    """KG2: the provided rich member + any thin synthetic extras."""
+    ids = [ingest_member_context(_load("member-context.json"))]
+    if _exists("members-extra.json"):
+        for em in _load("members-extra.json"):
+            ids.append(ingest_member_context(em))
+    return ids
 
 
 def ingest_all() -> dict:
     apply_schema()
-    n_ex = ingest_exercises(_load("exercises.json"))
-    n_mem = ingest_members(_load("members.json"))
-    return {"exercises": n_ex, "members": n_mem}
+    exercises = _load("exercises.json")
+    n_ex = ingest_exercises(exercises)
+    n_embedded = embed_exercises(exercises)
+    anatomy = build_anatomy()                 # KG1 part-of hierarchy (joints exist now)
+    member_ids = ingest_members()             # KG2
+    n_contra = link_injury_contraindications()  # injury -> movement-pattern edges
+    n_alias = apply_aliases()
+    return {"exercises": n_ex, "embedded": n_embedded,
+            "members": len(member_ids), "member_ids": member_ids,
+            "anatomy": anatomy, "injury_pattern_edges": n_contra,
+            "aliased_concepts": n_alias}
