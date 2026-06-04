@@ -38,12 +38,16 @@ COPILOT_SYSTEM = (
 ROUTES = [
     ("brief", ["brief", "morning", "catch me up", "what should i", "where are we", "today"]),
     ("sleep", ["sleep", "oura", "readiness", "rested", "recovery", "hrv"]),
+    ("labs", ["lab", "blood", "dexa", "cholesterol", "ldl", "hdl", "triglyceride",
+              "a1c", "hba1c", "glucose", "vitamin d", "ferritin", "crp", "bone density",
+              "body fat", "lean mass", "visceral", "bloodwork", "biomarker panel",
+              "test result", "test came back", "diagnos"]),
     ("churn", ["churn", "at risk", "drop off", "drop-off", "cancel", "disengag", "retention", "losing"]),
     ("adherence", ["adherence", "consistency", "completion", "showing up", "missed", "skipping", "compliance"]),
     ("what_changed", ["changed", "change", "since last", "different", "this week vs", "trend"]),
 ]
 
-VALID_INTENTS = {"brief", "sleep", "adherence", "churn", "what_changed", "general"}
+VALID_INTENTS = {"brief", "sleep", "labs", "adherence", "churn", "what_changed", "general"}
 ROUTE_CONFIDENCE = 0.70   # below this, ask rather than guess
 
 ROUTER_SYSTEM = (
@@ -52,6 +56,8 @@ ROUTER_SYSTEM = (
     "Intents:\n"
     "- brief: a morning catch-up / 'what should I know today'\n"
     "- sleep: sleep, recovery, readiness, HRV\n"
+    "- labs: blood panel / DEXA / lab results — cholesterol, HbA1c, vitamin D, bone "
+    "density, body composition, 'my test came back', navigating a diagnosis\n"
     "- adherence: consistency, showing up, completion, missed sessions\n"
     "- churn: retention / at-risk / likely to cancel\n"
     "- what_changed: what's different since last week / recent trend\n"
@@ -184,6 +190,13 @@ def facts(intent: str, ctx: dict) -> list[dict]:
         if o:
             add("Oura sleep score", o.get("avg_sleep_score"))
 
+    if intent == "labs":
+        flags = ctx.get("flags") or []
+        # notable (out-of-range) findings lead; then a couple of normal anchors
+        ordered = [f for f in flags if f.get("notable")] + [f for f in flags if not f.get("notable")]
+        for f in ordered[:5]:
+            add(f["marker"], f"{f['value']} {f['unit']} · {f['status']}")
+
     if intent == "churn":
         add("Churn risk", (ctx.get("churn") or {}).get("level"))
     if intent == "brief":
@@ -288,6 +301,63 @@ def _retrieve_what_changed(member_id: str, _q: str) -> dict:
             "journey_stage": summ.get("journey_stage")}
 
 
+# Standard clinical reference bands — the interpretation is DETERMINISTIC (code,
+# not the LLM). Each entry: (label, status). First band whose upper bound the value
+# is under wins. Sources: ACC/AHA lipids, ADA HbA1c, Endocrine Society vitamin D.
+def _band(value, bands, unit):
+    if value is None:
+        return None
+    for upper, status in bands:
+        if upper is None or value < upper:
+            return {"value": value, "unit": unit, "status": status,
+                    "notable": status not in ("optimal", "normal", "good", "within range")}
+    return None
+
+
+def _lab_flags(bp: dict, dx: dict) -> list[dict]:
+    """Deterministic, clinically-banded interpretation of the raw markers."""
+    out = []
+
+    def add(marker, reading):
+        if reading:
+            out.append({"marker": marker, **reading})
+
+    if bp:
+        add("LDL", _band(bp.get("ldl"), [(100, "optimal"), (130, "near-optimal"),
+                                          (160, "borderline-high"), (190, "high"), (None, "very high")], "mg/dL"))
+        add("HDL", _band(bp.get("hdl"), [(40, "low"), (60, "normal"), (None, "good")], "mg/dL"))
+        add("Triglycerides", _band(bp.get("trig"), [(150, "normal"), (200, "borderline-high"),
+                                                     (500, "high"), (None, "very high")], "mg/dL"))
+        add("HbA1c", _band(bp.get("hba1c"), [(5.7, "normal"), (6.5, "prediabetes"), (None, "diabetes range")], "%"))
+        add("Vitamin D", _band(bp.get("vit_d"), [(20, "deficient"), (30, "insufficient"), (None, "sufficient")], "ng/mL"))
+        add("CRP", _band(bp.get("crp"), [(1, "low CV risk"), (3, "average CV risk"), (None, "high CV risk")], "mg/L"))
+    if dx:
+        add("Bone density (Z)", _band(dx.get("bone_z"), [(-2.0, "below expected range"), (None, "within range")], "Z"))
+        # body composition is shown as-is (no universal cut-point), lean mass leads
+        if dx.get("lean_mass") is not None:
+            out.append({"marker": "Lean mass", "value": dx["lean_mass"], "unit": "kg",
+                        "status": "tracked", "notable": False})
+        add("Visceral fat", _band(dx.get("visceral_fat"), [(100, "within range"), (None, "elevated")], "cm²"))
+    return out
+
+
+def _retrieve_labs(member_id: str, _q: str) -> dict:
+    bp = run(
+        "MATCH (m:Member {id:$id})-[:HAS_LAB]->(l:BloodPanel) "
+        "RETURN l.date AS date, l.ldl_mg_dl AS ldl, l.hdl_mg_dl AS hdl, "
+        "l.triglycerides_mg_dl AS trig, l.hba1c_pct AS hba1c, l.crp_mg_l AS crp, "
+        "l.vitamin_d_ng_ml AS vit_d, l.ferritin_ng_ml AS ferritin "
+        "ORDER BY l.date DESC LIMIT 1", id=member_id)
+    dx = run(
+        "MATCH (m:Member {id:$id})-[:HAS_LAB]->(l:DexaScan) "
+        "RETURN l.date AS date, l.lean_mass_kg AS lean_mass, l.fat_mass_kg AS fat_mass, "
+        "l.body_fat_pct AS body_fat, l.visceral_fat_cm2 AS visceral_fat, "
+        "l.bone_density_z_score AS bone_z ORDER BY l.date DESC LIMIT 1", id=member_id)
+    blood, dexa = (bp[0] if bp else None), (dx[0] if dx else None)
+    return {"profile": _profile(member_id), "blood_panel": blood, "dexa": dexa,
+            "flags": _lab_flags(blood or {}, dexa or {})}
+
+
 def _retrieve_general(member_id: str, question: str) -> dict:
     # GraphRAG: vector search over the member's chat history + structured context.
     chat = []
@@ -315,6 +385,7 @@ _RETRIEVERS = {
     "brief": _retrieve_brief,
     "adherence": _retrieve_adherence,
     "sleep": _retrieve_sleep,
+    "labs": _retrieve_labs,
     "churn": _retrieve_churn,
     "what_changed": _retrieve_what_changed,
     "general": _retrieve_general,
@@ -419,6 +490,14 @@ def _fallback_answer(intent: str, ctx: dict, name: str) -> str:
         a = ctx.get("weekly_completion_pct") or []
         if a:
             return f"{name}'s adherence is {ctx.get('trend', '—')}; latest week {a[-1]['pct']}%."
+    if intent == "labs":
+        flags = ctx.get("flags") or []
+        notable = [f for f in flags if f.get("notable")]
+        if notable:
+            bits = ", ".join(f"{f['marker']} {f['value']}{f['unit']} ({f['status']})" for f in notable[:3])
+            return f"{name}'s flagged markers: {bits}. Everything else is in range."
+        if flags:
+            return f"{name}'s latest labs are all within standard ranges."
     if intent == "churn" and ctx.get("churn"):
         ch = ctx["churn"]
         return f"Churn risk is {ch.get('level')}: {'; '.join(ch.get('reasons') or [])}."
