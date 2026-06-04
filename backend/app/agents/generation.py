@@ -339,6 +339,45 @@ _AVOID_CUES = (
 )
 
 
+# Recognisable training vocabulary — if a prompt contains NONE of these (and no
+# muscle/pattern/equipment from the graph), it isn't a workout request and we ask
+# what to focus on rather than silently assembling a default plan from the pool.
+_FITNESS_TERMS = (
+    "strength", "cardio", "mobility", "flexib", "stretch", "warm", "cool", "core",
+    "upper", "lower", "full body", "full-body", "push", "pull", "legs", "leg", "arm",
+    "chest", "pec", "back", "shoulder", "glute", "hip", "quad", "hamstring", "calf",
+    "ab", "endurance", "hiit", "interval", "recovery", "deload", "rep", "set ",
+    "session", "workout", "train", "easy", "hard", "light", "heavy", "tempo",
+    "circuit", "conditioning", "balance", "power", "tone", "build", "burn", "sweat",
+    "gym", "band", "dumbbell", "kettlebell", "barbell", "machine", "bodyweight",
+    "yoga", "pilates", "run", "row", "squat", "press", "curl", "lunge", "plank",
+    "mobil", "activ", "fit", "move", "exercise",
+)
+
+
+def _member_name(member_id: str) -> str:
+    rows = run("MATCH (m:Member {id:$id}) RETURN m.name AS name", id=member_id)
+    return rows[0]["name"] if rows else "this member"
+
+
+def has_fitness_signal(member_id: str, prompt: str) -> bool:
+    """True if the prompt reads as a training request — a known fitness term, or a
+    muscle / movement-pattern / equipment surface form from the graph."""
+    pl = f" {prompt.lower()} "
+    if any(t in pl for t in _FITNESS_TERMS):
+        return True
+    rows = run(
+        "MATCH (n) WHERE n:Muscle OR n:MovementPattern OR n:Equipment "
+        "RETURN coalesce(n.name,'') AS name, coalesce(n.alt_labels,[]) AS alts"
+    )
+    for r in rows:
+        if r["name"] and f" {r['name'].lower()} " in f" {pl} ":
+            return True
+        if any(a and a.lower() in pl for a in r["alts"]):
+            return True
+    return False
+
+
 def detect_clarifications(member_id: str, prompt: str,
                           avoid_joints: list[str], ignore_joints: list[str]) -> list[str]:
     """Joints the coach gestured at avoiding that AREN'T already accounted for —
@@ -371,11 +410,27 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
     # generating on an assumption. Safety stays deterministic — the graph decides
     # what's ambiguous, the coach decides the answer.
     with trace.step("agent", "clarify_gate"):
+        in_scope = has_fitness_signal(member_id, prompt)
         todo = detect_clarifications(member_id, prompt, avoid_joints, ignore_joints)
+        trace.add("decision", "fitness request?", in_scope=in_scope)
         trace.add("decision", "ambiguous avoidance?", needs=todo)
+    # Off-topic / empty prompt → ask what to train rather than inventing a default.
+    if not in_scope:
+        name = _member_name(member_id)
+        return ({
+            "member_id": member_id,
+            "clarification": {
+                "joints": [],   # not an avoidance question — no yes/no, just guidance
+                "scope": True,
+                "questions": [
+                    f"I want to program the right session for {name} — what should it "
+                    "focus on? Try a muscle group (e.g. legs, back), a style (strength, "
+                    "mobility, conditioning), or just say \"balanced full-body\"."
+                ],
+            },
+        }, trace.as_list())
     if todo:
-        nm = run("MATCH (m:Member {id:$id}) RETURN m.name AS name", id=member_id)
-        name = nm[0]["name"] if nm else "this member"
+        name = _member_name(member_id)
         return ({
             "member_id": member_id,
             "clarification": {

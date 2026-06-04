@@ -71,23 +71,28 @@ export function Generator({ memberId, memberName, injuries }: any) {
 
       {clarify && (
         <div className="clarify">
-          <div className="clarify-tag">Before I build this — one check</div>
+          <div className="clarify-tag">
+            {clarify.scope ? "What should this session focus on?" : "Before I build this — one check"}
+          </div>
           {clarify.questions.map((q: string, i: number) => (
             <div key={i} className="clarify-q">
               <span>{q}</span>
-              <div className="clarify-actions">
-                <button className="chip" onClick={() => resolve(clarify.joints[i], true)}>
-                  Yes, avoid the {clarify.joints[i]}
-                </button>
-                <button className="chip ghost" onClick={() => resolve(clarify.joints[i], false)}>
-                  No, it's fine
-                </button>
-              </div>
+              {clarify.joints[i] && (
+                <div className="clarify-actions">
+                  <button className="chip" onClick={() => resolve(clarify.joints[i], true)}>
+                    Yes, avoid the {clarify.joints[i]}
+                  </button>
+                  <button className="chip ghost" onClick={() => resolve(clarify.joints[i], false)}>
+                    No, it's fine
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           <div className="muted">
-            The graph found a constraint it can't confirm on file — so it asks
-            instead of guessing. Your answer filters the exercise pool deterministically.
+            {clarify.scope
+              ? "That prompt didn't read as a training request, so I'd rather ask than invent one — edit it above and generate again."
+              : "The graph found a constraint it can't confirm on file — so it asks instead of guessing. Your answer filters the exercise pool deterministically."}
           </div>
         </div>
       )}
