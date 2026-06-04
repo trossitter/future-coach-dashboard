@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     data_dir: str = "data"
 
     anthropic_api_key: str = ""
+    # latest/most capable by default; set CLAUDE_MODEL=claude-sonnet-4-6 to trade
+    # a little quality for lower latency against the ~5s target.
+    claude_model: str = "claude-opus-4-8"
 
 
 settings = Settings()
