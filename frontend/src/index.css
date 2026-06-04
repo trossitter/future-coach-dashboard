@@ -33,8 +33,10 @@ body {
 
 /* --- minimal nav --- */
 .topbar {
+  position: relative; z-index: 2;
+  max-width: 1320px; margin: 0 auto;
+  padding: clamp(18px, 4vw, 52px) clamp(20px, 6vw, 96px) 0;
   display: flex; align-items: baseline; justify-content: space-between;
-  padding-bottom: clamp(32px, 8vh, 90px);
 }
 .wordmark { font-weight: 600; letter-spacing: 0.42em; font-size: 14px; }
 .nav { display: flex; align-items: baseline; gap: 18px; }
@@ -47,14 +49,12 @@ body {
 
 /* --- editorial hero: the member as a feature spread --- */
 .hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.35fr 0.65fr;
-  gap: clamp(24px, 4vw, 64px);
-  align-items: start;
+  position: relative; z-index: 1;
+  max-width: 1320px; margin: 0 auto;
+  padding: clamp(48px, 13vh, 140px) clamp(20px, 6vw, 96px) clamp(70px, 16vh, 170px);
   min-height: 80vh;
 }
-.hero-copy { z-index: 1; }   /* the figure layers ON TOP, cutting across the headline */
+.hero-copy { max-width: 540px; }
 .eyebrow {
   font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--sub); margin-bottom: clamp(16px, 4vh, 40px);
@@ -62,8 +62,8 @@ body {
 .eyebrow .num { color: var(--blue); font-weight: 600; margin-right: 6px; }
 .display {
   font-family: var(--serif); font-weight: 300; font-style: normal;
-  font-size: clamp(46px, 9vw, 132px); line-height: 0.9;
-  letter-spacing: -0.02em; margin: 0; max-width: 12ch;
+  font-size: clamp(32px, 5.2vw, 74px); line-height: 0.96;
+  letter-spacing: -0.02em; margin: 0;
 }
 .rule { height: 1px; background: var(--hair); margin: clamp(28px, 5vh, 56px) 0 clamp(20px, 3vh, 32px); max-width: 460px; }
 .stats { display: flex; flex-wrap: wrap; gap: clamp(28px, 4vw, 60px); }
@@ -74,27 +74,23 @@ body {
 .hero-aside { z-index: 2; padding-top: 6px; }
 .lede { font-size: 15px; line-height: 1.7; color: #43454c; max-width: 32ch; }
 
-/* the athlete bled directly into the composition — not boxed */
-.figure {
-  position: absolute; right: -2vw; top: -4%; bottom: -3%;
-  width: min(60vw, 780px);
-  margin: 0; z-index: 3; pointer-events: none;
-  /* fade the empty left side + the bottom so only the body reads (no box edge) */
-  -webkit-mask-image:
-    linear-gradient(to right, transparent 0%, #000 32%),
-    linear-gradient(to bottom, #000 84%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent 0%, #000 32%),
-    linear-gradient(to bottom, #000 84%, transparent);
-  mask-composite: intersect;
+/* the athlete is a FIXED background — stays put while content scrolls over it */
+.bg-figure { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.bg-figure img {
+  position: absolute; right: 0; top: 0; height: 100vh;
+  width: min(66vw, 920px); object-fit: cover; object-position: 56% 18%;
+  /* fade the empty left edge so the body — not a box — meets the page */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 42%);
 }
-.figure img { width: 100%; height: 100%; object-fit: cover; object-position: 62% 28%; }
+.bg-scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(to right,
+    var(--bg) 0%, rgba(237, 238, 241, 0.5) 32%, rgba(237, 238, 241, 0.1) 58%, transparent 80%);
+}
 .figure-fallback {
-  width: 100%; height: 100%;
-  background:
-    radial-gradient(120% 80% at 70% 0%, rgba(124, 47, 61, 0.12), transparent 60%),
-    linear-gradient(200deg, #e7e9ec, #dbdfe3 70%);
+  position: absolute; right: 0; top: 0; height: 100vh; width: min(66vw, 920px);
+  background: linear-gradient(200deg, #e7e9ec, #dbdfe3 70%);
 }
 
 /* --- surfaces (the working tools), airy + glassy --- */
@@ -181,6 +177,15 @@ button:hover:not(:disabled) { opacity: 0.86; }
 
 .foot { margin-top: 90px; padding-top: 22px; border-top: 1px solid var(--hair); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); }
 
+/* opaque sheet that scrolls up over the fixed figure */
+.sheet { position: relative; z-index: 1; background: var(--bg); }
+.sheet::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -140px; height: 140px;
+  background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none;
+}
+.sheet-inner { max-width: 1320px; margin: 0 auto; padding: clamp(36px, 6vh, 72px) clamp(20px, 6vw, 96px) 80px; }
+.sheet-inner > .surface:first-child { margin-top: 0; }
+
 /* coach overview — member roster (the landing) */
 .section-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub); margin-bottom: 18px; }
 .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 16px; }
@@ -189,16 +194,27 @@ button:hover:not(:disabled) { opacity: 0.86; }
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--hair); border-radius: 16px; padding: 20px 22px;
   cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink);
-  transition: border-color .15s, transform .15s;
-  box-shadow: 0 18px 50px -40px rgba(24, 36, 74, 0.4);
+  min-height: 150px; display: flex; flex-direction: column;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+  box-shadow: 0 16px 40px -34px rgba(24, 30, 50, 0.45);   /* equal for every member */
 }
-.member-card:hover { opacity: 1; border-color: var(--blue); transform: translateY(-2px); }
-.member-card.active { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue), 0 18px 50px -40px rgba(24, 36, 74, 0.4); }
-.member-card.flagged { border-left: 3px solid var(--clay); }
-.card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.member-card:hover { opacity: 1; border-color: rgba(124, 47, 61, 0.35); transform: translateY(-2px); }
+/* the ONLY card that looks different is the file you're currently viewing */
+.member-card.active {
+  border-color: var(--blue);
+  box-shadow: inset 0 0 0 1.5px var(--blue), 0 26px 58px -28px rgba(124, 47, 61, 0.5);
+  transform: translateY(-2px);
+}
+.card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .card-name { font-family: var(--serif); font-size: 24px; }
-.flag { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay); white-space: nowrap; }
-.card-stats { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; font-size: 12.5px; color: var(--sub); }
+.status { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.status.alert { background: rgba(184, 99, 74, 0.16); color: var(--clay); }
+.status.ok { background: rgba(95, 122, 82, 0.15); color: var(--sage); }
+.status.new { background: rgba(124, 47, 61, 0.12); color: var(--blue); }
+.card-metrics { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+.metric { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+.m-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
+.m-val { color: var(--ink); font-variant-numeric: tabular-nums; }
 .member-headline { font-family: var(--serif); font-weight: 300; font-size: clamp(34px, 5vw, 56px); margin: 6px 0 8px; letter-spacing: -0.02em; }
 
 /* responsive — collapse the asymmetric spread gracefully */
