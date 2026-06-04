@@ -33,6 +33,17 @@ class CopilotRequest(BaseModel):
     history: list[dict] = Field(default_factory=list)
 
 
+class RouteDecision(BaseModel):
+    """Copilot router output — which KG2 slice to retrieve, with a confidence the
+    router can fall below to force a clarifying question instead of guessing."""
+    intent: str = Field(
+        description="exactly one of: brief, sleep, adherence, churn, what_changed, general")
+    confidence: float = Field(description="0.0–1.0 confidence in this routing")
+    clarify_question: str = Field(
+        default="",
+        description="if the question is ambiguous, a short either/or question for the coach")
+
+
 class Intent(BaseModel):
     """Planner output — the coach's prompt resolved onto graph concepts."""
     target_muscles: list[str] = Field(default_factory=list)

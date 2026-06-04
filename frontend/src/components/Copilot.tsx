@@ -100,6 +100,9 @@ export function Copilot({ memberId }: any) {
       <div className="thread">
         {messages.map((m, i) => (
           <div key={i} className={"msg " + m.role}>
+            {m.role === "copilot" && m.intent === "clarify" && (
+              <span className="intent">Quick check</span>
+            )}
             {m.role === "copilot" && m.facts?.length > 0 && (
               <div className="facts">
                 {m.facts.map((f: any, k: number) => (

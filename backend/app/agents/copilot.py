@@ -19,6 +19,7 @@ from .. import llm, longitudinal
 from ..db import run
 from ..embeddings import embed_query
 from ..observability import Trace
+from ..schemas import RouteDecision
 
 COPILOT_SYSTEM = (
     "You are a fitness coach's copilot. The key facts are ALREADY shown to the coach "
@@ -32,7 +33,8 @@ COPILOT_SYSTEM = (
     "output nothing."
 )
 
-# (intent, keywords) — first match wins; order matters.
+# (intent, keywords) — first match wins; order matters. The deterministic
+# fallback router, used when there's no API key (or the LLM router errors).
 ROUTES = [
     ("brief", ["brief", "morning", "catch me up", "what should i", "where are we", "today"]),
     ("sleep", ["sleep", "oura", "readiness", "rested", "recovery", "hrv"]),
@@ -41,16 +43,38 @@ ROUTES = [
     ("what_changed", ["changed", "change", "since last", "different", "this week vs", "trend"]),
 ]
 
+VALID_INTENTS = {"brief", "sleep", "adherence", "churn", "what_changed", "general"}
+ROUTE_CONFIDENCE = 0.70   # below this, ask rather than guess
+
+ROUTER_SYSTEM = (
+    "Classify a fitness coach's question about ONE of their members into exactly one "
+    "intent, and rate your confidence 0.0–1.0.\n"
+    "Intents:\n"
+    "- brief: a morning catch-up / 'what should I know today'\n"
+    "- sleep: sleep, recovery, readiness, HRV\n"
+    "- adherence: consistency, showing up, completion, missed sessions\n"
+    "- churn: retention / at-risk / likely to cancel\n"
+    "- what_changed: what's different since last week / recent trend\n"
+    "- general: anything else about the member (preferences, injuries, a past "
+    "exercise, why something was programmed, etc.)\n"
+    "If the question is genuinely ambiguous between intents, set a LOW confidence and "
+    "fill clarify_question with a short either/or question for the coach. Be decisive "
+    "when the intent is clear (high confidence)."
+)
+
 
 class CState(TypedDict, total=False):
     member_id: str
     question: str
     trace: Trace
     intent: str
+    confidence: float
+    clarify_question: str
     context: dict
 
 
 def _route_intent(q: str) -> str:
+    """Deterministic keyword router (no-key fallback)."""
     ql = q.lower()
     for intent, kws in ROUTES:
         if any(k in ql for k in kws):
@@ -59,14 +83,43 @@ def _route_intent(q: str) -> str:
 
 
 def route(state: CState) -> dict:
+    """Deterministic-first routing with an LLM tiebreak. A coach with a full
+    roster wants a fast reminder, so the keyword router answers the common case
+    in ~0ms with no LLM call. Only when keywords can't tell (the `general`
+    fallthrough) do we escalate to the structured RouteDecision — and if even
+    that is low-confidence, we route to `clarify` and ask instead of guessing."""
+    q = state["question"]
     with state["trace"].step("agent", "router"):
-        intent = _route_intent(state["question"])
-        state["trace"].add("decision", "intent", intent=intent)
-    return {"intent": intent}
+        kw = _route_intent(q)
+        if kw != "general":
+            state["trace"].add("decision", "intent (keyword, fast path)", intent=kw)
+            return {"intent": kw, "confidence": None}
+
+        # keywords missed → escalate to the LLM only here
+        if llm.is_available():
+            rd = llm.parse(ROUTER_SYSTEM, q, RouteDecision, max_tokens=200)
+            decision = rd.model_dump() if rd else None
+            if decision:
+                intent, conf = decision.get("intent"), decision.get("confidence") or 0.0
+                if intent not in VALID_INTENTS or conf < ROUTE_CONFIDENCE:
+                    cq = (decision.get("clarify_question") or "").strip()
+                    state["trace"].add("decision", "low confidence → clarify",
+                                       intent=intent, confidence=round(conf, 2))
+                    return {"intent": "clarify", "confidence": conf, "clarify_question": cq}
+                state["trace"].add("decision", "intent (llm tiebreak)",
+                                   intent=intent, confidence=round(conf, 2))
+                return {"intent": intent, "confidence": conf}
+
+        # no key / parse failure → safe default
+        state["trace"].add("decision", "intent (keyword: general)", intent="general")
+        return {"intent": "general", "confidence": None}
 
 
 def retrieve(state: CState) -> dict:
-    member_id, intent = state["member_id"], state["question"] and state["intent"]
+    member_id, intent = state["member_id"], state["intent"]
+    # A clarify routing has no member slice to fetch — carry the question through.
+    if intent == "clarify":
+        return {"context": {"clarify": state.get("clarify_question", "")}}
     with state["trace"].step("agent", "retriever", intent=intent):
         ctx = _RETRIEVERS.get(intent, _retrieve_general)(member_id, state["question"])
         state["trace"].add("tool", f"KG2 retrieval: {intent}",
@@ -383,6 +436,14 @@ def answer_stream(question: str, result: dict, history: list[dict] | None = None
     ctx = _clean(result["context"])
     intent = result["intent"]
     name = (ctx.get("profile") or {}).get("name", "the member")
+
+    # Low-confidence routing → ask the coach (the router already drafted the
+    # question); no LLM call, no retrieval, no guessing.
+    if intent == "clarify":
+        yield ctx.get("clarify") or (
+            f"I want to pull the right data for {name} — are you asking about their "
+            "training, recovery, or retention?")
+        return
 
     if not any(k != "profile" for k in ctx):
         yield f"There's no {intent.replace('_', ' ')} data on file for {name} yet."
