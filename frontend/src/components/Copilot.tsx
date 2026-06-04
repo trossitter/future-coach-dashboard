@@ -30,10 +30,13 @@ export function Copilot({ memberId }: any) {
     setMessages((m) => [...m, { role: "coach", text: q },
                             { role: "copilot", text: "", intent: "" }]);
     await postSSE("/copilot", { member_id: memberId, question: q }, (ev, data) => {
+      // pure updaters (no mutation) — mutating shared state doubled under StrictMode
       if (ev === "context") {
-        setMessages((m) => { const c = [...m]; c[c.length - 1].intent = data.result.intent; return c; });
+        setMessages((m) => m.map((msg, i) =>
+          i === m.length - 1 ? { ...msg, intent: data.result.intent } : msg));
       } else if (ev === "answer") {
-        setMessages((m) => { const c = [...m]; c[c.length - 1].text += data; return c; });
+        setMessages((m) => m.map((msg, i) =>
+          i === m.length - 1 ? { ...msg, text: msg.text + data } : msg));
       }
     });
     setBusy(false);
