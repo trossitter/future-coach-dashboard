@@ -12,6 +12,7 @@ from ..aliases import ALIASES
 from ..config import settings
 from ..db import run
 from ..embeddings import embed
+from ..grounding.snomed import load_cache
 from .anatomy import build_anatomy, link_injury_contraindications
 from .member_ingest import ingest_member_context
 from .schema import apply_schema
@@ -110,6 +111,31 @@ def ingest_members() -> list[str]:
     return ids
 
 
+def apply_snomed_grounding() -> dict:
+    """Attach cached SNOMED CT codes (SKOS exactMatch-style) to Joint + Injury."""
+    cache = load_cache(settings.data_dir)
+    run(
+        """
+        UNWIND $rows AS r
+        MATCH (j:Joint {name: r.name})
+        SET j.snomed_code = r.code, j.snomed_name = r.snomed_name
+        """,
+        rows=[{"name": k, "code": v["code"], "snomed_name": v["name"]}
+              for k, v in cache.get("joints", {}).items()],
+    )
+    for key, c in cache.get("conditions", {}).items():
+        run(
+            """
+            MATCH (i:Injury)
+            WHERE toLower(coalesce(i.notes, '')) CONTAINS $kw
+            SET i.snomed_code = $code, i.snomed_name = $name
+            """,
+            kw=key, code=c["code"], name=c["name"],
+        )
+    return {"joints": len(cache.get("joints", {})),
+            "conditions": len(cache.get("conditions", {}))}
+
+
 def ingest_all() -> dict:
     apply_schema()
     exercises = _load("exercises.json")
@@ -118,8 +144,9 @@ def ingest_all() -> dict:
     anatomy = build_anatomy()                 # KG1 part-of hierarchy (joints exist now)
     member_ids = ingest_members()             # KG2
     n_contra = link_injury_contraindications()  # injury -> movement-pattern edges
+    snomed = apply_snomed_grounding()         # SNOMED CT grounding (offline cache)
     n_alias = apply_aliases()
     return {"exercises": n_ex, "embedded": n_embedded,
             "members": len(member_ids), "member_ids": member_ids,
             "anatomy": anatomy, "injury_pattern_edges": n_contra,
-            "aliased_concepts": n_alias}
+            "snomed": snomed, "aliased_concepts": n_alias}

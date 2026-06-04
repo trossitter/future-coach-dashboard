@@ -1,0 +1,54 @@
+{
+  "joints": {
+    "knee": {
+      "code": "49076000",
+      "name": "Knee joint structure"
+    },
+    "hip": {
+      "code": "24136001",
+      "name": "Hip joint structure"
+    },
+    "shoulder": {
+      "code": "85537004",
+      "name": "Glenohumeral joint structure"
+    },
+    "ankle": {
+      "code": "70258002",
+      "name": "Ankle joint structure"
+    },
+    "elbow": {
+      "code": "16953009",
+      "name": "Elbow joint structure"
+    },
+    "wrist": {
+      "code": "74670003",
+      "name": "Wrist joint structure"
+    },
+    "cervical spine": {
+      "code": "122494005",
+      "name": "Structure of cervical vertebral column"
+    },
+    "thoracic spine": {
+      "code": "122495006",
+      "name": "Thoracic spine structure"
+    },
+    "lumbar spine": {
+      "code": "122496007",
+      "name": "Lumbar spine structure"
+    },
+    "patellofemoral joint": {
+      "code": "129160003",
+      "name": "Structure of patellofemoral joint"
+    }
+  },
+  "conditions": {
+    "patellofemoral": {
+      "code": "430725003",
+      "name": "Patellofemoral stress syndrome"
+    },
+    "rotator cuff": {
+      "code": "320031000119109",
+      "name": "Right rotator cuff syndrome"
+    }
+  }
+}

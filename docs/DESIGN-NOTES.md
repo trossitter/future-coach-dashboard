@@ -65,3 +65,29 @@ easy — not done yet, but the design doesn't preclude it.
   semantic-web interop.
 - **Stable IDs** (exercises already carry UUIDs; concepts should too) let
   external systems integrate by identity, not by label — which also unlocks i18n.
+
+## Ontology grounding — what we pull, and why
+
+The brief is explicit that a *small, well-justified subset used meaningfully*
+beats wiring up everything. Our choices:
+
+- **SKOS** — the mapping layer. Gym-jargon `alt_labels` are `skos:altLabel`
+  (resolver matches them deterministically); SNOMED codes are `skos:exactMatch`.
+  This is the catalog-term ↔ ontology-concept bridge, and it's what makes the
+  resolver and i18n extensible.
+- **SNOMED CT** (via NCI EVS) — pulled **official codes for the 9 joints + the
+  patellofemoral sub-structure + the 2 clinical conditions** in the seed data
+  (e.g. knee `49076000`, patellofemoral stress syndrome `430725003`). Fetched
+  once, cached to `data/snomed-cache.json`, attached to `Joint`/`Injury`. *Left
+  out:* the full SNOMED hierarchy and laterality variants — we ground the
+  structures we actually reason over, not the whole terminology.
+- **OPE** (Ontology of Physical Exercises) — our node taxonomy (Exercise,
+  Muscle, Joint, MovementPattern, Equipment, Injury) is aligned to OPE's classes
+  conceptually; hand-rolled, no OWL parse (the brief permits this).
+- **COPPER** (personalisation / behaviour change) — realised as the
+  **longitudinal journey-stage** reasoning (`app/longitudinal.py`): adherence
+  trend + churn → onboarding / at-risk / progressing / maintaining, which biases
+  generation. This is the "consider where the member is in their journey" ask.
+- **PROV-O** — provenance of *why each exercise was selected*: emitted by the
+  generation crew (Surface A), recording the graph paths that justified a pick
+  and what was filtered for safety. (Built in the generation phase.)

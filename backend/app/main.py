@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 
-from . import resolver, safety
+from . import longitudinal, resolver, safety
 from .db import run
 from .graph.ingest import ingest_all
 
@@ -24,6 +24,26 @@ def health() -> dict:
 @app.post("/ingest")
 def ingest() -> dict:
     return ingest_all()
+
+
+@app.get("/members")
+def members() -> dict:
+    rows = run(
+        """
+        MATCH (m:Member)
+        OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
+        RETURN m.id AS id, m.name AS name, m.tier AS tier,
+               m.adherence_trend AS adherence_trend,
+               collect(DISTINCT i.region) AS injuries
+        ORDER BY name
+        """
+    )
+    return {"count": len(rows), "members": rows}
+
+
+@app.get("/members/{member_id}/longitudinal")
+def member_longitudinal(member_id: str) -> dict:
+    return longitudinal.summary(member_id)
 
 
 @app.get("/members/{member_id}/contraindicated")
