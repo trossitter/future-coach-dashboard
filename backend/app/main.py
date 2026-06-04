@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from . import longitudinal, resolver, safety
@@ -16,6 +17,9 @@ from .graph.ingest import ingest_all
 from .schemas import CopilotRequest, GenerateRequest
 
 app = FastAPI(title="Future KG Coaching Platform", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+)
 
 
 @app.on_event("startup")

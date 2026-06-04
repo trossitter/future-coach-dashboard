@@ -36,5 +36,20 @@ services:
       neo4j:
         condition: service_healthy
 
+  frontend:
+    image: node:20-slim
+    container_name: future-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE: "http://localhost:8000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules   # keep the container's linux node_modules
+    depends_on:
+      - backend
+
 volumes:
   neo4j-data:
