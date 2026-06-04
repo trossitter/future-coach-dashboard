@@ -3,7 +3,7 @@
    blue-from-the-outfit as the only color · asymmetric grid · huge negative space. */
 
 :root {
-  --bg: #f3f2ef;
+  --bg: #edeef1;            /* pale, cool gray-white — matches the studio backdrop */
   --ink: #16161a;
   --sub: #6f7178;
   --hair: rgba(20, 22, 26, 0.09);
@@ -52,9 +52,9 @@ body {
   grid-template-columns: 1.35fr 0.65fr;
   gap: clamp(24px, 4vw, 64px);
   align-items: start;
-  min-height: 62vh;
+  min-height: 80vh;
 }
-.hero-copy { z-index: 2; }
+.hero-copy { z-index: 1; }   /* the figure layers ON TOP, cutting across the headline */
 .eyebrow {
   font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--sub); margin-bottom: clamp(16px, 4vh, 40px);
@@ -76,18 +76,25 @@ body {
 
 /* the athlete bled directly into the composition — not boxed */
 .figure {
-  position: absolute; right: -3vw; bottom: -6%;
-  width: min(44vw, 600px); height: 86%;
-  margin: 0; z-index: 1; pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
-  mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  position: absolute; right: -2vw; top: -4%; bottom: -3%;
+  width: min(60vw, 780px);
+  margin: 0; z-index: 3; pointer-events: none;
+  /* fade the empty left side + the bottom so only the body reads (no box edge) */
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 32%),
+    linear-gradient(to bottom, #000 84%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 32%),
+    linear-gradient(to bottom, #000 84%, transparent);
+  mask-composite: intersect;
 }
-.figure img { width: 100%; height: 100%; object-fit: cover; object-position: 68% 22%; }
+.figure img { width: 100%; height: 100%; object-fit: cover; object-position: 62% 28%; }
 .figure-fallback {
   width: 100%; height: 100%;
   background:
-    radial-gradient(120% 80% at 70% 0%, rgba(124, 47, 61, 0.14), transparent 60%),
-    linear-gradient(200deg, #e9e7e2, #dcdad3 70%);
+    radial-gradient(120% 80% at 70% 0%, rgba(124, 47, 61, 0.12), transparent 60%),
+    linear-gradient(200deg, #e7e9ec, #dbdfe3 70%);
 }
 
 /* --- surfaces (the working tools), airy + glassy --- */
@@ -164,7 +171,7 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .intent { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--blue); display: block; margin-bottom: 4px; }
 
 /* graph evidence */
-.graph-evidence { margin-top: 16px; border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: #efeee9; }
+.graph-evidence { margin-top: 16px; border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: #eceef1; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: var(--sub); padding: 10px 14px; border-top: 1px solid var(--hair); }
 .legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; }
 

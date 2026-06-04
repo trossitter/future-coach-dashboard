@@ -41,7 +41,7 @@ export function GraphEvidence({ memberName, injuries, plan, filtered }: any) {
         width={430}
         height={300}
         cooldownTicks={80}
-        backgroundColor="#efeee9"
+        backgroundColor="#eceef1"
         nodeRelSize={5}
         linkColor={(l: any) => (l.kind === "contra" ? "#b8634a" : "#d8d3c8")}
         linkWidth={(l: any) => (l.kind === "contra" ? 1.5 : 1)}

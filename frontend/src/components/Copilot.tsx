@@ -45,7 +45,7 @@ export function Copilot({ memberId }: any) {
 
   return (
     <div className="panel">
-      <h2>AI Copilot <span className="tag">Surface B</span></h2>
+      <h2>AI Copilot</h2>
 
       <div className="quick">
         {QUICK.map((q) => (

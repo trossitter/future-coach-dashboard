@@ -41,7 +41,7 @@ export function Generator({ memberId, memberName, injuries }: any) {
 
   return (
     <div className="panel">
-      <h2>Workout Generator <span className="tag">Surface A</span></h2>
+      <h2>Workout Generator</h2>
       <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} />
       <div className="row">
         <label>Time
