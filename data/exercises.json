@@ -1,0 +1,1400 @@
+[
+  {
+    "id": "0b3178cf-bf89-45a3-bfb0-27310ef6ef38",
+    "name": "Barbell Decline Bench Press",
+    "muscle_groups": [
+      "chest",
+      "triceps"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow"
+    ],
+    "movement_patterns": [
+      "upper push - horizontal"
+    ],
+    "equipment_required": [
+      "Adjustable Bench - Decline",
+      "Barbell",
+      "Plate",
+      "Rack"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0e3201e9-4394-4902-a717-f4ce544d98de",
+    "name": "Push-Up to Knee-Drive",
+    "muscle_groups": [
+      "chest",
+      "triceps",
+      "deltoids",
+      "core"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow",
+      "wrist"
+    ],
+    "movement_patterns": [
+      "upper push - horizontal",
+      "core - anti-extension",
+      "core - flexion"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 1.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0fa0eb42-797f-4752-9a80-68e2dfb2a935",
+    "name": "Alternating Dumbbell Decline Bench Press",
+    "muscle_groups": [
+      "chest",
+      "triceps"
+    ],
+    "joints_loaded": [],
+    "movement_patterns": [
+      "upper push - horizontal"
+    ],
+    "equipment_required": [
+      "Adjustable Bench - Decline",
+      "Dumbbell"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "13261989-7436-44d0-8daf-754b259e5af8",
+    "name": "Dumbbell Incline Chest Fly",
+    "muscle_groups": [
+      "chest"
+    ],
+    "joints_loaded": [
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "upper push - horizontal",
+      "upper - adduction"
+    ],
+    "equipment_required": [
+      "Dumbbell",
+      "Adjustable Bench - Incline"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "1465f189-eb62-410d-a73e-590a84693dd0",
+    "name": "Dumbbell Neutral-Grip Bench Press",
+    "muscle_groups": [
+      "chest",
+      "triceps"
+    ],
+    "joints_loaded": [
+      "wrist",
+      "elbow",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "upper push - horizontal"
+    ],
+    "equipment_required": [
+      "Dumbbell",
+      "Flat Bench"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0a5efec6-b142-4a20-8c6d-5829ddc248af",
+    "name": "Isometric Pull-Up",
+    "muscle_groups": [
+      "lats",
+      "middle back",
+      "biceps",
+      "upper back"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow",
+      "wrist"
+    ],
+    "movement_patterns": [
+      "upper pull - vertical",
+      "isometric"
+    ],
+    "equipment_required": [
+      "Pull-Up Bar"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0b6fcb1c-aa47-455b-8a9f-f9d1582745df",
+    "name": "Band-Assisted Chin-Up (From Foot)",
+    "muscle_groups": [
+      "lats",
+      "middle back",
+      "biceps",
+      "upper back"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow",
+      "wrist"
+    ],
+    "movement_patterns": [
+      "upper pull - vertical"
+    ],
+    "equipment_required": [
+      "Pull-Up Bar",
+      "Resistance Band - Loop"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0fb071d6-2ca0-46ac-a855-83a0029b2ccc",
+    "name": "Machine - Single-Arm Lat Pull-Down",
+    "muscle_groups": [
+      "lats",
+      "biceps",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow"
+    ],
+    "movement_patterns": [
+      "upper pull - vertical"
+    ],
+    "equipment_required": [
+      "Seated Lat Pulldown Machine"
+    ],
+    "is_bilateral": true,
+    "side": "left_arm",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": "ae41474d-3891-48a9-b43a-8006665be142"
+  },
+  {
+    "id": "12918da8-e735-45e3-9185-8f6c074397a3",
+    "name": "Kneeling Stability Ball Lat Stretch",
+    "muscle_groups": [
+      "lats",
+      "upper back"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "knee",
+      "hip"
+    ],
+    "movement_patterns": [
+      "mobility - dynamic",
+      "regen"
+    ],
+    "equipment_required": [
+      "Stability Ball",
+      "Yoga Mat"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": "aecd6652-9705-4609-8f05-8b37d3d9b7da"
+  },
+  {
+    "id": "01128a8f-44a4-43ae-a172-b6a32b2e8534",
+    "name": "Med Ball Scoop Toss",
+    "muscle_groups": [
+      "deltoids",
+      "core",
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "elbow",
+      "hip",
+      "knee",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "lower push - squat",
+      "upper pull - vertical",
+      "cardio - plyometric",
+      "cardio"
+    ],
+    "equipment_required": [
+      "Medicine Ball"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 1.1,
+    "bilateral_pair_id": "7188df4c-2524-4e5a-b093-4d0f76ba5106"
+  },
+  {
+    "id": "03258dbf-bc21-4495-bcae-ca627b3a0f20",
+    "name": "Alternating Dumbbell Overhead Press",
+    "muscle_groups": [
+      "deltoids",
+      "triceps"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow"
+    ],
+    "movement_patterns": [
+      "upper push - vertical"
+    ],
+    "equipment_required": [
+      "Dumbbell"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.4,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0a2dc786-fb42-4571-9b26-f58cdeb2c70e",
+    "name": "Bodyweight Pike",
+    "muscle_groups": [
+      "deltoids",
+      "core",
+      "hip flexors"
+    ],
+    "joints_loaded": [
+      "hip",
+      "shoulder",
+      "wrist"
+    ],
+    "movement_patterns": [
+      "core - flexion",
+      "core - anti-extension"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0b1250ab-ac21-42a3-8aff-87f75e85eea0",
+    "name": "Bench-Supported Incline YTI",
+    "muscle_groups": [
+      "deltoids",
+      "upper back",
+      "rotator cuff"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "cervical spine"
+    ],
+    "movement_patterns": [
+      "mobility - dynamic",
+      "shoulders - accessory",
+      "balance",
+      "core - extension"
+    ],
+    "equipment_required": [
+      "Adjustable Bench - Incline"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "004717c7-4e34-4a26-978f-50106f09abcc",
+    "name": "Wide-Grip Preacher Curl with EZ Bar",
+    "muscle_groups": [
+      "biceps"
+    ],
+    "joints_loaded": [
+      "elbow"
+    ],
+    "movement_patterns": [
+      "arms - accessory"
+    ],
+    "equipment_required": [
+      "EZ Bar",
+      "Preacher Curl Bench"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "12b80a72-6c2f-43f0-b3bd-6b11e14e3358",
+    "name": "Resistance Band Reverse Curl",
+    "muscle_groups": [
+      "biceps",
+      "forearms"
+    ],
+    "joints_loaded": [
+      "elbow"
+    ],
+    "movement_patterns": [
+      "arms - accessory"
+    ],
+    "equipment_required": [
+      "Resistance Band - Loop"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "14a8ad1b-09c9-4572-860c-9d6b231a3a72",
+    "name": "Single-Arm Dumbbell Preacher Curl",
+    "muscle_groups": [
+      "biceps"
+    ],
+    "joints_loaded": [
+      "elbow"
+    ],
+    "movement_patterns": [
+      "arms - accessory"
+    ],
+    "equipment_required": [
+      "Preacher Curl Bench",
+      "Dumbbell"
+    ],
+    "is_bilateral": true,
+    "side": "left_arm",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": "d71d4c88-200a-4b22-ab6f-7155d6bbd1c1"
+  },
+  {
+    "id": "0aa65232-8367-4622-b0ef-37e31626ba65",
+    "name": "Bench-Lying Single-Arm Dumbbell Tricep Extension",
+    "muscle_groups": [
+      "triceps"
+    ],
+    "joints_loaded": [
+      "elbow",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "arms - accessory"
+    ],
+    "equipment_required": [
+      "Dumbbell",
+      "Flat Bench"
+    ],
+    "is_bilateral": true,
+    "side": "left_arm",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": "31295116-8369-4f7a-a46e-9a60763cdb0e"
+  },
+  {
+    "id": "12fe4a7f-cdf9-411e-9272-868a74debfeb",
+    "name": "Single-Arm Cable Tricep Extension",
+    "muscle_groups": [
+      "triceps"
+    ],
+    "joints_loaded": [
+      "elbow"
+    ],
+    "movement_patterns": [
+      "arms - accessory"
+    ],
+    "equipment_required": [
+      "Cable Resistance Machine",
+      "Handle Attachment"
+    ],
+    "is_bilateral": true,
+    "side": "left_arm",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.4,
+    "bilateral_pair_id": "c7d17922-9ff5-413b-938a-a6c96590afd1"
+  },
+  {
+    "id": "297668c1-4006-4280-8208-ea3cd99d3264",
+    "name": "Suspension Tricep Press",
+    "muscle_groups": [
+      "triceps"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow",
+      "hip"
+    ],
+    "movement_patterns": [
+      "arms - accessory",
+      "core - anti-extension"
+    ],
+    "equipment_required": [
+      "Suspension Trainer"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00036a08-7c22-42e4-8fe5-323b53e31667",
+    "name": "Kettlebell Goblet Cyclist Squat",
+    "muscle_groups": [
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - squat"
+    ],
+    "equipment_required": [
+      "Kettlebell",
+      "Slant Board"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00cc383b-f156-4b23-952a-15340100c261",
+    "name": "RNT Split Squat",
+    "muscle_groups": [
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - split squat"
+    ],
+    "equipment_required": [
+      "Resistance Band - Loop"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.8,
+    "bilateral_pair_id": "e2814de7-ac6d-4d2d-9a2d-6250b75c5d1d"
+  },
+  {
+    "id": "01ff62bc-e887-49e4-9cc8-bcd367b34cfd",
+    "name": "Static Jump",
+    "muscle_groups": [
+      "quads",
+      "calves"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "hip",
+      "knee"
+    ],
+    "movement_patterns": [
+      "cardio - plyometric",
+      "cardio"
+    ],
+    "equipment_required": [],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0252c3c1-435f-49a2-9f79-5ef53eec3b1b",
+    "name": "Med Ball Split Squat",
+    "muscle_groups": [
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - split squat"
+    ],
+    "equipment_required": [
+      "Medicine Ball"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": "a07c9b45-5d4a-47ed-a17e-6389cf1014b5"
+  },
+  {
+    "id": "02fe4cf5-bb21-4bef-868f-fea1477e2a53",
+    "name": "Dumbbell Goblet Split Squat",
+    "muscle_groups": [
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - split squat"
+    ],
+    "equipment_required": [
+      "Dumbbell"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": "65f1f947-cba9-4c83-913d-15d69b26bd15"
+  },
+  {
+    "id": "0732c6eb-2275-4af3-8276-9bb8be2aa12d",
+    "name": "One-Kettlebell Hamstring Walkout",
+    "muscle_groups": [
+      "hamstrings",
+      "glutes",
+      "core"
+    ],
+    "joints_loaded": [
+      "knee",
+      "hip",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower pull - hip lift",
+      "legs - accessory",
+      "core - anti-rotation"
+    ],
+    "equipment_required": [
+      "Kettlebell",
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0a4d99cf-5075-468e-9551-b9f8efa267f1",
+    "name": "World's Greatest Stretch",
+    "muscle_groups": [
+      "hamstrings",
+      "middle back",
+      "hip flexors"
+    ],
+    "joints_loaded": [
+      "hip",
+      "thoracic spine",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "mobility - dynamic",
+      "regen"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.1,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "1423ff58-68de-47da-8884-cb6f438f5774",
+    "name": "Walking Toe Touches",
+    "muscle_groups": [
+      "hamstrings",
+      "core",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "lumbar spine",
+      "shoulder",
+      "hip"
+    ],
+    "movement_patterns": [
+      "mobility - dynamic"
+    ],
+    "equipment_required": [],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "2248e07a-93de-4da1-ad20-aff27537a99a",
+    "name": "Med Ball Hamstring Walkout",
+    "muscle_groups": [
+      "hamstrings",
+      "glutes",
+      "core"
+    ],
+    "joints_loaded": [
+      "knee",
+      "hip",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower pull - hip lift",
+      "legs - accessory",
+      "core - anti-rotation"
+    ],
+    "equipment_required": [
+      "Medicine Ball",
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.4,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00678525-7d38-4a9e-8998-a299a209c724",
+    "name": "Alternating Dumbbell Racked Crossback Lunge",
+    "muscle_groups": [
+      "glutes",
+      "quads",
+      "hip adductors"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - lunge",
+      "lower - abduction",
+      "lower - adduction"
+    ],
+    "equipment_required": [
+      "Dumbbell"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00a510b1-4676-4433-a37d-30f63e1b8a4f",
+    "name": "Stair Climber",
+    "muscle_groups": [
+      "glutes",
+      "calves",
+      "quads",
+      "hip flexors"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "hip",
+      "knee"
+    ],
+    "movement_patterns": [
+      "cardio - locomotion",
+      "cardio"
+    ],
+    "equipment_required": [
+      "Stair Climber"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00b26731-066f-4b69-96e8-3472fc6fbc09",
+    "name": "Barbell Racked Forward Lunge",
+    "muscle_groups": [
+      "glutes",
+      "quads"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - lunge"
+    ],
+    "equipment_required": [
+      "Barbell",
+      "Plate",
+      "Rack"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": "14b7f1bb-26ac-431e-a079-3cfc51e849e7"
+  },
+  {
+    "id": "00c7ac93-153e-4b96-be56-b4ca6b465369",
+    "name": "Barbell Step Up to Knee-Drive",
+    "muscle_groups": [
+      "glutes",
+      "quads",
+      "hip flexors",
+      "core"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "knee",
+      "hip"
+    ],
+    "movement_patterns": [
+      "lower push - step-up",
+      "core - flexion",
+      "balance"
+    ],
+    "equipment_required": [
+      "Barbell",
+      "Box",
+      "Plate"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.6,
+    "bilateral_pair_id": "4db015c8-ac9b-47b1-8c00-d0c3b452f297"
+  },
+  {
+    "id": "01e33d9f-3607-49db-bd59-af7f61d77300",
+    "name": "Vertical Jump to Broad Jump",
+    "muscle_groups": [
+      "glutes",
+      "quads",
+      "calves"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "hip",
+      "knee"
+    ],
+    "movement_patterns": [
+      "cardio - plyometric",
+      "cardio",
+      "lower push - squat"
+    ],
+    "equipment_required": [],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "00e18a26-70dd-4d43-b013-5038b75a41f3",
+    "name": "Alternating Low Plank To Low Side Plank",
+    "muscle_groups": [
+      "core",
+      "obliques",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "elbow",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "core - anti-lateral flexion",
+      "core - anti-extension"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.1,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "01f5a2bb-ecf7-4168-92b3-35bd78592e26",
+    "name": "High Plank Bird Dog",
+    "muscle_groups": [
+      "core",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "wrist",
+      "shoulder",
+      "knee"
+    ],
+    "movement_patterns": [
+      "core - anti-rotation",
+      "isometric",
+      "quadruped"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.2,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0333b0cc-4b43-45d9-adff-505b349e53d9",
+    "name": "Sandbag Zercher Carry",
+    "muscle_groups": [
+      "core",
+      "forearms",
+      "traps"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "knee",
+      "hip",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "core - carry",
+      "cardio - locomotion"
+    ],
+    "equipment_required": [
+      "Sandbag"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "03ba2166-a5e6-4d0d-9110-ab5b73acdd50",
+    "name": "BOSU Step Over",
+    "muscle_groups": [
+      "core",
+      "calves",
+      "quads",
+      "glutes"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "hip",
+      "knee",
+      "elbow"
+    ],
+    "movement_patterns": [
+      "cardio - plyometric",
+      "cardio"
+    ],
+    "equipment_required": [
+      "BOSU"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.7,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "01bc9947-23e6-4dcf-bf66-6381a2c29700",
+    "name": "Jumping Jack",
+    "muscle_groups": [
+      "calves",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "shoulder",
+      "hip"
+    ],
+    "movement_patterns": [
+      "cardio - plyometric",
+      "cardio"
+    ],
+    "equipment_required": [],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.7,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0a0b8a72-0bd4-41aa-9fac-e0b44356ca8f",
+    "name": "Horizontal Leg Press Calf Raises",
+    "muscle_groups": [
+      "calves"
+    ],
+    "joints_loaded": [
+      "ankle"
+    ],
+    "movement_patterns": [
+      "lower push - calf raise"
+    ],
+    "equipment_required": [
+      "Horizontal Leg Press Machine"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "10336de1-5994-4074-aa52-9b1b28d845a3",
+    "name": "Jump Rope - Single-Leg",
+    "muscle_groups": [
+      "calves"
+    ],
+    "joints_loaded": [
+      "ankle"
+    ],
+    "movement_patterns": [
+      "cardio - plyometric",
+      "cardio"
+    ],
+    "equipment_required": [
+      "Jump Rope"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 1.9,
+    "bilateral_pair_id": "d4b11a1d-d858-4bb1-85fe-232bdc51293c"
+  },
+  {
+    "id": "11afb04e-9b3d-413f-a4cc-8c03a2fb5d93",
+    "name": "Lacrosse Ball Upper Back against Wall",
+    "muscle_groups": [
+      "upper back"
+    ],
+    "joints_loaded": [],
+    "movement_patterns": [
+      "massage",
+      "regen"
+    ],
+    "equipment_required": [
+      "Lacrosse Ball",
+      "Wall"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": "c14bca1a-72eb-46e8-9de8-ff3d0c0226f8"
+  },
+  {
+    "id": "12573626-5760-4d71-8cb5-e255daaa0b42",
+    "name": "Single-Arm Chest-Supported Incline Row",
+    "muscle_groups": [
+      "upper back",
+      "lats",
+      "biceps",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "elbow",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "upper pull - horizontal"
+    ],
+    "equipment_required": [
+      "Dumbbell",
+      "Adjustable Bench - Incline"
+    ],
+    "is_bilateral": true,
+    "side": "left_arm",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": "67c66d3a-2daa-4d5e-a26a-7758cf8d896a"
+  },
+  {
+    "id": "1abf5a3d-25ca-4ee8-89d9-d3d8c6a53691",
+    "name": "Machine - Chest-Supported Row",
+    "muscle_groups": [
+      "upper back",
+      "lats",
+      "biceps",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "elbow",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "upper pull - horizontal"
+    ],
+    "equipment_required": [
+      "Chest Supported Row Machine"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.3,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "02d6478f-0579-480b-a188-8e719d4fda14",
+    "name": "Low Copenhagen Plank",
+    "muscle_groups": [
+      "obliques",
+      "hip adductors",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "ankle",
+      "knee",
+      "hip",
+      "shoulder"
+    ],
+    "movement_patterns": [
+      "core - anti-lateral flexion",
+      "lower - adduction",
+      "isometric"
+    ],
+    "equipment_required": [
+      "Flat Bench",
+      "Yoga Mat"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": "20e5227b-36fe-47f0-8c8c-7ad1d8a0818e"
+  },
+  {
+    "id": "07772057-db56-4cfb-ae4b-f98f4cac6b9a",
+    "name": "Anchored Band Rotational Lift",
+    "muscle_groups": [
+      "obliques",
+      "deltoids"
+    ],
+    "joints_loaded": [
+      "shoulder",
+      "thoracic spine"
+    ],
+    "movement_patterns": [
+      "core - rotation",
+      "shoulders - accessory"
+    ],
+    "equipment_required": [
+      "Resistance Band - With Handles"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.4,
+    "bilateral_pair_id": "f81b857c-41db-4823-9f0c-6274bf85c267"
+  },
+  {
+    "id": "1965072a-7e34-4d37-98f5-bde8cb6629a4",
+    "name": "Cow Pose",
+    "muscle_groups": [
+      "lower back"
+    ],
+    "joints_loaded": [
+      "lumbar spine",
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "mobility - static",
+      "yoga",
+      "regen"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "201032fe-3189-4c79-a69b-e67e2c7e9b81",
+    "name": "SkiErg",
+    "muscle_groups": [
+      "lower back",
+      "lats",
+      "deltoids",
+      "core"
+    ],
+    "joints_loaded": [
+      "elbow",
+      "wrist",
+      "shoulder",
+      "hip"
+    ],
+    "movement_patterns": [
+      "cardio - locomotion",
+      "cardio",
+      "total body"
+    ],
+    "equipment_required": [
+      "SkiErg"
+    ],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.6,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0a9d8d01-a52d-453e-92bc-dd9238e9a930",
+    "name": "Ground Upper Trap Stretch",
+    "muscle_groups": [
+      "traps"
+    ],
+    "joints_loaded": [
+      "cervical spine"
+    ],
+    "movement_patterns": [
+      "mobility - static",
+      "regen"
+    ],
+    "equipment_required": [
+      "Yoga Mat"
+    ],
+    "is_bilateral": true,
+    "side": "left_side",
+    "priority_tier": 2,
+    "is_reps": false,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0,
+    "bilateral_pair_id": "bce04e50-529c-4b52-b429-6cc0f8e9ecfb"
+  },
+  {
+    "id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
+    "name": "Standing Neck Circles",
+    "muscle_groups": [
+      "traps",
+      "upper back"
+    ],
+    "joints_loaded": [
+      "cervical spine"
+    ],
+    "movement_patterns": [
+      "mobility - dynamic",
+      "regen"
+    ],
+    "equipment_required": [],
+    "is_bilateral": false,
+    "side": null,
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": false,
+    "estimated_rep_duration": 0.1,
+    "bilateral_pair_id": null
+  },
+  {
+    "id": "0263d731-ceb6-41d0-b01f-88f0f177623b",
+    "name": "Standing Miniband Hip Flexion",
+    "muscle_groups": [
+      "hip flexors"
+    ],
+    "joints_loaded": [
+      "hip",
+      "knee",
+      "ankle"
+    ],
+    "movement_patterns": [
+      "car"
+    ],
+    "equipment_required": [
+      "Miniband"
+    ],
+    "is_bilateral": true,
+    "side": "left_leg",
+    "priority_tier": 2,
+    "is_reps": true,
+    "is_duration": true,
+    "supports_weight": true,
+    "estimated_rep_duration": 0.5,
+    "bilateral_pair_id": "690b051a-3c35-4d5f-b135-9f868bed2136"
+  }
+]

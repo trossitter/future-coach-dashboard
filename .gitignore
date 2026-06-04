@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Env / secrets
+.env
+.env.local
+
+# Neo4j data volume (when run outside docker)
+neo4j-data/
+
+# OS
+.DS_Store
+
+# Model caches (sentence-transformers / HF)
+.cache/
+models/
