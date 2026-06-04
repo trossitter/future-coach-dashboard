@@ -27,15 +27,52 @@ SUBSTRUCTURES = {
     "knee": ["patellofemoral joint", "tibiofemoral joint"],
 }
 
-# injury-note keyword(s) -> contraindicated movement patterns.
-# Deep knee flexion is intentionally NOT a blanket squat ban: the joint-loading
-# filter already excludes knee-loading work, and the member was explicitly
-# cleared for low-impact (box) squats — so we only hard-contraindicate the
-# unambiguous case (plyometrics). Documented trade-off.
-NOTE_PATTERN_RULES = [
+# --- clinical contraindication rules -----------------------------------------
+# Two layers, unioned per injury, both derived from the graph (never a prompt):
+#
+#   1. REGION_RULES — a systematic, region-keyed clinical default applied to
+#      EVERY injury, so contraindication doesn't depend on whether free-text
+#      notes happened to mention a pattern. Keyed by substring so "left knee" /
+#      "right knee" both match "knee".
+#   2. NOTE_RULES — note-specific overrides that catch member-specific detail the
+#      region default can't ("avoid overhead", "loaded spinal flexion").
+#
+# This is a starter map aligned to OPE/SNOMED concepts and meant for
+# clinician-in-the-loop review before production — the SHAPE is the deliverable;
+# the depth grows under governance. Joint-loading (LOADS, part-of) already filters
+# anything that stresses the injured joint, so these rules deliberately add only
+# pattern-level risks that joint-loading misses (impact, overhead, loaded spine).
+REGION_RULES = {
+    "knee":     ["cardio - plyometric"],                       # impact through the knee
+    "ankle":    ["cardio - plyometric"],                       # impact / landing
+    "hip":      ["cardio - plyometric"],                       # impact through the hip
+    "shoulder": ["upper push - vertical", "upper pull - vertical"],  # overhead loading
+    "lower back": ["core - flexion", "core - extension", "core - rotation"],  # loaded spine
+    "lumbar":   ["core - flexion", "core - extension", "core - rotation"],
+    "cervical": ["upper push - vertical"],                     # overhead load through the neck
+}
+
+NOTE_RULES = [
     (("plyometric", "plyo", "jumping", "high-impact", "high impact"),
      ["cardio - plyometric"]),
+    (("overhead",),
+     ["upper push - vertical", "upper pull - vertical"]),
+    (("spinal flexion", "lumbar flexion", "loaded spinal"),   # spine-specific only;
+     ["core - flexion"]),                                      # "knee flexion" must NOT match
 ]
+
+
+def _patterns_for(region: str, notes: str) -> list[str]:
+    """Union of region-default + note-specific contraindicated patterns."""
+    region_l, notes_l = (region or "").lower(), (notes or "").lower()
+    pats: set[str] = set()
+    for key, ps in REGION_RULES.items():
+        if key in region_l:
+            pats.update(ps)
+    for keywords, ps in NOTE_RULES:
+        if any(k in notes_l for k in keywords):
+            pats.update(ps)
+    return sorted(pats)
 
 
 def build_anatomy() -> dict:
@@ -64,16 +101,17 @@ def build_anatomy() -> dict:
 
 
 def link_injury_contraindications() -> int:
-    """Derive (:Injury)-[:CONTRAINDICATES]->(:MovementPattern) from injury notes."""
+    """Derive (:Injury)-[:CONTRAINDICATES]->(:MovementPattern) from region default
+    + note-specific clinical rules (see REGION_RULES / NOTE_RULES). These edges are
+    fully derived, so rebuild rather than accumulate — a rule change must be able to
+    REMOVE an edge, not only add one."""
+    run("MATCH (:Injury)-[c:CONTRAINDICATES]->() DELETE c")
     n = 0
-    for inj in run("MATCH (i:Injury) RETURN i.id AS id, coalesce(i.notes,'') AS notes"):
-        notes = inj["notes"].lower()
-        patterns = sorted({
-            pat
-            for keywords, pats in NOTE_PATTERN_RULES
-            if any(k in notes for k in keywords)
-            for pat in pats
-        })
+    for inj in run(
+        "MATCH (i:Injury) RETURN i.id AS id, coalesce(i.region,'') AS region, "
+        "coalesce(i.notes,'') AS notes"
+    ):
+        patterns = _patterns_for(inj["region"], inj["notes"])
         if patterns:
             run(
                 """
