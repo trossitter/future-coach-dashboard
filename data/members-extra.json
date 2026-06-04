@@ -12,6 +12,21 @@
     ],
     "adherence": { "weekly_completion_pct": [ { "week_of": "2026-05-12", "pct": 100 }, { "week_of": "2026-05-19", "pct": 100 }, { "week_of": "2026-05-26", "pct": 100 }, { "week_of": "2026-06-02", "pct": 100 } ], "trend": "steady" },
     "biomarkers": { "resting_hr_bpm": 52, "hrv_ms": 68, "sleep_hours_last_7_days": [7.5, 7.8, 7.2, 8.0, 7.6, 7.9, 7.4], "weight_trend_kg": [ { "date": "2026-05-05", "kg": 88.4 }, { "date": "2026-06-02", "kg": 88.0 } ] },
+    "wearables": {
+      "oura_ring": {
+        "device": "Oura Ring Gen4 (synthetic)",
+        "last_synced": "2026-06-04T06:35:00-07:00",
+        "daily": [
+          { "date": "2026-05-29", "sleep_score": 84, "readiness_score": 86, "total_sleep_h": 7.6, "sleep_efficiency_pct": 92, "deep_sleep_min": 88, "rem_sleep_min": 108, "resting_hr_bpm": 50, "hrv_ms": 71, "respiratory_rate": 13.6, "temp_deviation_c": 0.1 },
+          { "date": "2026-05-30", "sleep_score": 79, "readiness_score": 80, "total_sleep_h": 7.1, "sleep_efficiency_pct": 89, "deep_sleep_min": 74, "rem_sleep_min": 96, "resting_hr_bpm": 52, "hrv_ms": 64, "respiratory_rate": 13.9, "temp_deviation_c": 0.3 },
+          { "date": "2026-05-31", "sleep_score": 88, "readiness_score": 90, "total_sleep_h": 8.0, "sleep_efficiency_pct": 94, "deep_sleep_min": 96, "rem_sleep_min": 116, "resting_hr_bpm": 49, "hrv_ms": 76, "respiratory_rate": 13.4, "temp_deviation_c": -0.1 },
+          { "date": "2026-06-01", "sleep_score": 82, "readiness_score": 83, "total_sleep_h": 7.4, "sleep_efficiency_pct": 91, "deep_sleep_min": 82, "rem_sleep_min": 102, "resting_hr_bpm": 51, "hrv_ms": 68, "respiratory_rate": 13.7, "temp_deviation_c": 0.0 },
+          { "date": "2026-06-02", "sleep_score": 76, "readiness_score": 78, "total_sleep_h": 6.9, "sleep_efficiency_pct": 88, "deep_sleep_min": 70, "rem_sleep_min": 92, "resting_hr_bpm": 53, "hrv_ms": 61, "respiratory_rate": 14.1, "temp_deviation_c": 0.4 },
+          { "date": "2026-06-03", "sleep_score": 85, "readiness_score": 87, "total_sleep_h": 7.7, "sleep_efficiency_pct": 93, "deep_sleep_min": 90, "rem_sleep_min": 110, "resting_hr_bpm": 50, "hrv_ms": 72, "respiratory_rate": 13.5, "temp_deviation_c": 0.0 },
+          { "date": "2026-06-04", "sleep_score": 83, "readiness_score": 85, "total_sleep_h": 7.5, "sleep_efficiency_pct": 92, "deep_sleep_min": 85, "rem_sleep_min": 105, "resting_hr_bpm": 50, "hrv_ms": 70, "respiratory_rate": 13.6, "temp_deviation_c": 0.1 }
+        ]
+      }
+    },
     "chat_history": [ { "ts": "2026-06-03T20:00:00-07:00", "from": "member", "text": "Squats felt great, ready to push the weight up next week." } ],
     "coach_brief": { "generated_for": "2026-06-04", "morning_tasks": [ { "type": "progress", "text": "Duncan is consistent and recovered — consider a small load increase." } ], "churn_risk": { "level": "low", "reasons": ["100% adherence sustained 4 weeks"] } }
   },

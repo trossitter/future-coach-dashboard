@@ -74,10 +74,30 @@ def summary(member_id: str) -> dict:
     else:
         stage = "maintaining"
 
+    oura_rows = run(
+        """
+        MATCH (m:Member {id: $id})-[:HAS_OURA_READING]->(o:OuraReading)
+        RETURN o.date AS date, o.sleep_score AS sleep_score,
+               o.readiness_score AS readiness ORDER BY o.date
+        """,
+        id=member_id,
+    )
+    oura = None
+    if oura_rows:
+        s = [r["sleep_score"] for r in oura_rows if r["sleep_score"] is not None]
+        oura = {
+            "days": len(oura_rows),
+            "latest_sleep_score": s[-1] if s else None,
+            "avg_sleep_score": round(sum(s) / len(s)) if s else None,
+            "sleep_score_trend": _trend([float(x) for x in s]),
+            "latest_readiness": oura_rows[-1]["readiness"],
+        }
+
     return {
         "member_id": member_id,
         "found": True,
         "journey_stage": stage,
+        "oura": oura,
         "generation_bias": STAGE_BIAS[stage],
         "adherence": {"weeks": weeks, "latest_pct": pcts[-1] if pcts else None,
                       "trend": adherence_trend, "stated_trend": p["stated_trend"]},

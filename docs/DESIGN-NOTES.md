@@ -66,6 +66,25 @@ easy — not done yet, but the design doesn't preclude it.
 - **Stable IDs** (exercises already carry UUIDs; concepts should too) let
   external systems integrate by identity, not by label — which also unlocks i18n.
 
+## Source-agnostic member profile — meet members where they are
+
+A person's fitness picture is richer than any single app's data. Members arrive
+having already invested in complementary services — an **Oura** or Whoop ring,
+Apple Health, Garmin, a blood panel, a DEXA scan, a nutrition tracker. KG2 (the
+member-context graph) is deliberately **source-agnostic**: any external signal
+that maps onto our concepts (sleep, readiness, HRV, body composition, adherence)
+becomes nodes/edges and enriches the *same* profile. The `OuraReading` nodes are
+the worked example — a third-party wearable modeled as first-class graph data;
+Whoop, Garmin, or Apple Health slot in through the same ingestion shape, and the
+SNOMED/SKOS grounding gives lab and clinical sources a common vocabulary.
+
+This is an inclusion stance as much as a technical one: **best serving the people
+who come to us means not excluding those who have used complementary services —
+it means welcoming them, and the data they bring.** A closed model that ingested
+only our own measurements would quietly penalize the most engaged, quantified-self
+members; the open graph does the opposite — every extra source makes the
+personalization better, never worse.
+
 ## Ontology grounding — what we pull, and why
 
 The brief is explicit that a *small, well-justified subset used meaningfully*

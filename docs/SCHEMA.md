@@ -35,6 +35,7 @@ recommendation is explainable by the path that produced it.
 | `Session` | `member_id`+`date` | workout history; `completed`, `duration_min`, `rpe`, `exercises` |
 | `AdherenceWeek` | `member_id`+`week_of` | `pct` — longitudinal adherence series |
 | `WeightSample` | `member_id`+`date` | `kg` — longitudinal weight series |
+| `OuraReading` | `member_id`+`date` | Oura wearable: `sleep_score`, `readiness_score`, sleep stages, HRV, temp deviation |
 | `Lab` (`:BloodPanel` / `:DexaScan`) | `member_id` | lab panels as properties |
 | `ChatMessage` | `member_id`+`ts` | `from`, `text`, `embedding` (vector index), attachments |
 | `CoachBrief` | `member_id`+`generated_for` | `churn_level`, `churn_reasons` |

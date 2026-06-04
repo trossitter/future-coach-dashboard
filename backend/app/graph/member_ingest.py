@@ -152,6 +152,22 @@ def ingest_member_context(member: dict) -> str:
                 id=mid, props=payload,
             )
 
+    oura = (member.get("wearables") or {}).get("oura_ring")
+    if oura:
+        run(
+            """
+            MATCH (m:Member {id: $id})
+            SET m.oura_device = $device, m.oura_last_synced = $synced
+            WITH m
+            UNWIND $daily AS d
+            MERGE (o:OuraReading {member_id: $id, date: d.date})
+            SET o += d
+            MERGE (m)-[:HAS_OURA_READING]->(o)
+            """,
+            id=mid, device=oura.get("device"), synced=oura.get("last_synced"),
+            daily=oura.get("daily", []),
+        )
+
     chats = member.get("chat_history", [])
     if chats:
         vecs = embed([c["text"] for c in chats])
