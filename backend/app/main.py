@@ -6,8 +6,10 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 
 from . import longitudinal, resolver, safety
+from .agents.generation import run_generation
 from .db import run
 from .graph.ingest import ingest_all
+from .schemas import GenerateRequest
 
 app = FastAPI(title="Future KG Coaching Platform", version="0.1.0")
 
@@ -44,6 +46,15 @@ def members() -> dict:
 @app.get("/members/{member_id}/longitudinal")
 def member_longitudinal(member_id: str) -> dict:
     return longitudinal.summary(member_id)
+
+
+@app.post("/generate")
+def generate(req: GenerateRequest) -> dict:
+    """Surface A: multi-agent workout generation with provenance + trace."""
+    result, trace = run_generation(
+        req.member_id, req.prompt, req.time_minutes, req.exclude_terms
+    )
+    return {"result": result, "trace": trace}
 
 
 @app.get("/members/{member_id}/contraindicated")
