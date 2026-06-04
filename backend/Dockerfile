@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install core deps first for layer caching
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir ".[dev]"
 
 COPY app ./app
 
