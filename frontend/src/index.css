@@ -174,6 +174,26 @@ button:hover:not(:disabled) { opacity: 0.86; }
 
 .foot { margin-top: 90px; padding-top: 22px; border-top: 1px solid var(--hair); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); }
 
+/* coach overview — member roster (the landing) */
+.section-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub); margin-bottom: 18px; }
+.roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 16px; }
+.member-card {
+  text-align: left; background: var(--glass);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--hair); border-radius: 16px; padding: 20px 22px;
+  cursor: pointer; text-transform: none; letter-spacing: 0; color: var(--ink);
+  transition: border-color .15s, transform .15s;
+  box-shadow: 0 18px 50px -40px rgba(24, 36, 74, 0.4);
+}
+.member-card:hover { opacity: 1; border-color: var(--blue); transform: translateY(-2px); }
+.member-card.active { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue), 0 18px 50px -40px rgba(24, 36, 74, 0.4); }
+.member-card.flagged { border-left: 3px solid var(--clay); }
+.card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.card-name { font-family: var(--serif); font-size: 24px; }
+.flag { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay); white-space: nowrap; }
+.card-stats { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; font-size: 12.5px; color: var(--sub); }
+.member-headline { font-family: var(--serif); font-weight: 300; font-size: clamp(34px, 5vw, 56px); margin: 6px 0 8px; letter-spacing: -0.02em; }
+
 /* responsive — collapse the asymmetric spread gracefully */
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; min-height: auto; }

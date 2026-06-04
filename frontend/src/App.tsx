@@ -4,73 +4,44 @@ import { Generator } from "./components/Generator";
 import { Copilot } from "./components/Copilot";
 import "./index.css";
 
-function Stat({ k, v, sub }: { k: string; v: any; sub?: any }) {
-  return (
-    <div className="stat">
-      <div className="stat-k">{k}</div>
-      <div className="stat-v">{v ?? "—"}</div>
-      {sub && <div className="stat-sub">{sub}</div>}
-    </div>
-  );
-}
+const today = new Date().toLocaleDateString(undefined, {
+  weekday: "long", month: "long", day: "numeric",
+});
+
+const flagged = (m: any) =>
+  m.churn_level === "elevated" || m.adherence_trend === "declining";
 
 export default function App() {
-  const [members, setMembers] = useState<any[]>([]);
-  const [memberId, setMemberId] = useState("");
-  const [ctx, setCtx] = useState<any>(null);
+  const [roster, setRoster] = useState<any[]>([]);
+  const [sel, setSel] = useState<any | null>(null);
   const [imgOk, setImgOk] = useState(true);
 
-  useEffect(() => {
-    getJSON("/members").then((d) => {
-      setMembers(d.members || []);
-      if (d.members?.length) setMemberId(d.members[0].id);
-    });
-  }, []);
-  useEffect(() => {
-    setCtx(null);
-    if (memberId) getJSON(`/members/${memberId}/longitudinal`).then(setCtx);
-  }, [memberId]);
+  useEffect(() => { getJSON("/roster").then((d) => setRoster(d.members || [])); }, []);
 
-  const member = members.find((m) => m.id === memberId);
-  const injuries: string[] = (member?.injuries || []).filter(Boolean);
+  const needs = roster.filter(flagged);
+  const headline =
+    roster.length === 0 ? "Loading…" :
+    needs.length === 0 ? "Everyone's on track today." :
+    `${needs.length} member${needs.length > 1 ? "s" : ""} need${needs.length > 1 ? "" : "s"} you this morning.`;
 
   return (
     <div className="page">
       <header className="topbar">
         <span className="wordmark">FUTURE</span>
-        <nav className="nav">
-          <span className="nav-label">Coach dashboard</span>
-          <select value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </nav>
+        <nav className="nav"><span className="nav-label">Coach dashboard · Sam</span></nav>
       </header>
 
+      {/* front and center: what the coach needs, not a single member */}
       <section className="hero">
         <div className="hero-copy">
-          <div className="eyebrow"><span className="num">01</span> — Member</div>
-          <h1 className="display">{member?.name || "—"}</h1>
+          <div className="eyebrow">Today · {today}</div>
+          <h1 className="display">{headline}</h1>
           <div className="rule" />
-          <div className="stats">
-            <Stat k="Journey" v={ctx?.journey_stage} />
-            <Stat k="Adherence"
-              v={ctx?.adherence?.latest_pct != null ? ctx.adherence.latest_pct + "%" : "—"}
-              sub={ctx?.adherence?.trend} />
-            <Stat k="Injuries" v={injuries.length ? injuries.join(", ") : "none"} />
-            {ctx?.oura && <Stat k="Sleep score" v={ctx.oura.avg_sleep_score} sub="Oura avg" />}
-          </div>
-        </div>
-
-        <aside className="hero-aside">
-          <div className="eyebrow"><span className="num">·</span> Brief</div>
           <p className="lede">
-            {ctx?.churn_level ? `Churn risk ${ctx.churn_level}. ` : ""}
-            {ctx?.oura ? "Recovery tracked via Oura. " : ""}
             Recommendations are driven by the knowledge graph — safe, explainable,
-            and grounded in this member's own data.
+            and grounded in each member's own data. Choose a member to begin.
           </p>
-        </aside>
-
+        </div>
         <figure className="figure" aria-hidden="true">
           {imgOk
             ? <img src="/athlete.jpg" alt="" onError={() => setImgOk(false)} />
@@ -78,18 +49,48 @@ export default function App() {
         </figure>
       </section>
 
-      <section className="surface gen">
-        <div className="eyebrow"><span className="num">02</span> — Generate</div>
-        <Generator memberId={memberId} memberName={member?.name} injuries={injuries} />
+      <section className="surface">
+        <div className="section-label">Members</div>
+        <div className="roster">
+          {roster.map((m) => (
+            <button
+              key={m.id}
+              className={"member-card" + (sel?.id === m.id ? " active" : "") + (flagged(m) ? " flagged" : "")}
+              onClick={() => setSel(m)}
+            >
+              <div className="card-top">
+                <span className="card-name">{m.name}</span>
+                {flagged(m) && <span className="flag">needs attention</span>}
+              </div>
+              <div className="card-stats">
+                <span>{m.journey_stage || "—"}</span>
+                <span>adherence {m.adherence_pct != null ? m.adherence_pct + "%" : "—"}
+                  {m.adherence_trend ? ` · ${m.adherence_trend}` : ""}</span>
+                {m.churn_level && <span>churn {m.churn_level}</span>}
+                {m.injuries?.length > 0 && <span>{m.injuries.join(", ")}</span>}
+                {m.sleep_score && <span>sleep {m.sleep_score}</span>}
+              </div>
+            </button>
+          ))}
+        </div>
       </section>
 
-      <section className="surface cop">
-        <div className="eyebrow"><span className="num">03</span> — Copilot</div>
-        <Copilot memberId={memberId} />
-      </section>
+      {sel && (
+        <>
+          <section className="surface">
+            <div className="section-label">Working with</div>
+            <h2 className="member-headline">{sel.name}</h2>
+            <Generator memberId={sel.id} memberName={sel.name}
+              injuries={(sel.injuries || []).filter(Boolean)} />
+          </section>
+          <section className="surface">
+            <Copilot memberId={sel.id} />
+          </section>
+        </>
+      )}
 
       <footer className="foot">
-        Synthetic data only · knowledge-graph-backed · {members.length} members
+        Synthetic data only · knowledge-graph-backed · {roster.length} members
       </footer>
     </div>
   );

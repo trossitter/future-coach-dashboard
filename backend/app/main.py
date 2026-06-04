@@ -61,6 +61,33 @@ def members() -> dict:
     return {"count": len(rows), "members": rows}
 
 
+@app.get("/roster")
+def roster() -> dict:
+    """Coach overview: every member with the at-a-glance triage signals."""
+    rows = run(
+        """
+        MATCH (m:Member)
+        OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
+        RETURN m.id AS id, m.name AS name, collect(DISTINCT i.region) AS injuries
+        ORDER BY name
+        """
+    )
+    out = []
+    for r in rows:
+        s = longitudinal.summary(r["id"])
+        adh = s.get("adherence") or {}
+        out.append({
+            "id": r["id"], "name": r["name"],
+            "injuries": [x for x in r["injuries"] if x],
+            "journey_stage": s.get("journey_stage"),
+            "adherence_pct": adh.get("latest_pct"),
+            "adherence_trend": adh.get("trend"),
+            "churn_level": s.get("churn_level"),
+            "sleep_score": (s.get("oura") or {}).get("avg_sleep_score"),
+        })
+    return {"members": out}
+
+
 @app.get("/members/{member_id}/longitudinal")
 def member_longitudinal(member_id: str) -> dict:
     return longitudinal.summary(member_id)
