@@ -27,11 +27,14 @@ flowchart TB
 
   SAFE{{"Deterministic safety filter<br/>(graph traversal — never the prompt)"}}
 
-  subgraph KG["Neo4j — one DB, two subgraphs"]
+  subgraph KG["Neo4j — one DB, two subgraphs ◄── single source of truth"]
     K1[("KG1 · Movement / Clinical")]
     K2[("KG2 · Member Context")]
     VEC[["Vector indexes<br/>exercises · chat"]]
   end
+
+  SEED["data/*.json ◄── seed only<br/>ingested once (graph/ingest.py)"]
+  SEED -.->|"POST /ingest"| KG
 
   LLM["Claude (Haiku) — phrasing + structuring only"]
   GR["Grounding · SNOMED CT · SKOS · PROV-O · OPE/COPPER"]
@@ -44,6 +47,11 @@ flowchart TB
   K1 -. exactMatch .- GR
   K2 -. AFFECTS / HAS_ACCESS_TO .- K1
 ```
+
+**Neo4j is the single source of truth.** Every fact the coach sees — exercises,
+injuries, adherence, sleep, chat — is read from the graph at request time; the
+`data/*.json` files are *seed only*, ingested once via `graph/ingest.py`. The LLM
+**phrases** what the graph returns and never originates a fact.
 
 Free text → resolved onto canonical graph concepts (3-pass resolver) → graph
 traversal makes the safe, auditable decision → the LLM phrases it. The two graphs
@@ -121,7 +129,11 @@ each exercise, which graph path, what was filtered for safety) and a
 quick-prompt palette (*brief · adherence · sleep · churn · what changed*), charts
 (adherence / sleep / weight / messages), **past chat history with image
 attachments**, and **grounded follow-ups** (conversation memory for context,
-every claim still pinned to the retrieved member slice — never invented).
+every claim still pinned to the retrieved member slice — never invented). Routing
+is **deterministic-first** (keyword match answers the common case in ~0ms, no LLM
+— a coach wants a fast reminder); only a free-typed question that keywords can't
+place escalates to a **structured `RouteDecision`**, and if even that is
+low-confidence it **asks an either/or question** rather than guessing.
 
 ---
 
@@ -270,5 +282,6 @@ docs/      SCHEMA.md · DESIGN-NOTES.md
 
 Status: KG1+KG2 · deterministic safety · 3-pass resolution · two LangGraph crews ·
 streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz ·
-charts · clarify-before-generate · chat history + images · grounded follow-ups ·
-input-size guards · tests (14) · eval · one-command Docker. Synthetic data only.
+charts · clarify-before-generate · confidence-gated copilot routing · chat history
++ images · grounded follow-ups · input-size guards · tests (14) · eval ·
+one-command Docker. Synthetic data only.
