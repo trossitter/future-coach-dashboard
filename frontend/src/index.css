@@ -7,7 +7,7 @@
   --ink: #16161a;
   --sub: #6f7178;
   --hair: rgba(20, 22, 26, 0.09);
-  --blue: #2b54a8;          /* the only color — drawn from the athlete's outfit */
+  --blue: #7c2f3d;          /* the only color — drawn from the athlete's burgundy outfit */
   --clay: #b8634a;
   --amber: #b07a3c;
   --sage: #5f7a52;
@@ -82,11 +82,11 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
   mask-image: linear-gradient(to bottom, #000 78%, transparent);
 }
-.figure img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+.figure img { width: 100%; height: 100%; object-fit: cover; object-position: 68% 22%; }
 .figure-fallback {
   width: 100%; height: 100%;
   background:
-    radial-gradient(120% 80% at 70% 0%, rgba(43, 84, 168, 0.16), transparent 60%),
+    radial-gradient(120% 80% at 70% 0%, rgba(124, 47, 61, 0.14), transparent 60%),
     linear-gradient(200deg, #e9e7e2, #dcdad3 70%);
 }
 
@@ -132,7 +132,7 @@ button:hover:not(:disabled) { opacity: 0.86; }
   background: transparent; color: var(--ink); border: 1px solid var(--hair);
   text-transform: none; letter-spacing: 0; font-size: 12px; padding: 7px 14px;
 }
-.chip:hover:not(:disabled) { background: rgba(43, 84, 168, 0.06); border-color: var(--blue); opacity: 1; }
+.chip:hover:not(:disabled) { background: rgba(124, 47, 61, 0.06); border-color: var(--blue); opacity: 1; }
 .quick { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 14px; }
 .charts-row { margin-top: 18px; border-top: 1px solid var(--hair); padding-top: 16px; }
 

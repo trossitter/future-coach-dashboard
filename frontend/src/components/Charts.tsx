@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
-const COLORS = ["#2b54a8", "#b8634a", "#b07a3c"];
+const COLORS = ["#7c2f3d", "#b07a3c", "#5f7a52"];
 const tip = { background: "#ffffff", border: "1px solid rgba(20,22,26,0.12)", color: "#16161a", borderRadius: 8 };
 
 export function ChartView({ spec }: { spec: any }) {

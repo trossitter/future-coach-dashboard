@@ -5,7 +5,7 @@ import ForceGraph2D from "react-force-graph-2d";
 const FG: any = ForceGraph2D;
 
 const color = (g: string) =>
-  g === "member" ? "#2b54a8" :
+  g === "member" ? "#16161a" :
   g === "injury" ? "#b07a3c" :
   g === "safe" ? "#5f7a52" : "#b8634a";
 
