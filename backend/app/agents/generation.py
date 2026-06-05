@@ -39,6 +39,8 @@ class GenState(TypedDict, total=False):
     time_minutes: int
     exclude_terms: list[str]
     avoid_joints: list[str]
+    exclude_equipment: list[str]
+    extra_equipment: list[str]
     trace: Trace
     journey: dict
     intent: dict
@@ -132,6 +134,19 @@ def _llm_plan(prompt: str, intent: dict, journey: dict, cands: list[dict], count
     return plan.model_dump() if plan else None
 
 
+# Equipment polarity cues — a kit mention is only actionable WITH a cue telling us
+# whether it's gone ("no bands", "left at home") or available ("he has a bench").
+# Equipment is first-class intent here: parsed deterministically like muscles and
+# patterns, never inferred by the LLM.
+_EQUIP_REMOVAL_CUES = (
+    "no ", "without", "doesn't have", "does not have", "don't have", "can't use",
+    "cannot use", "lacks", "left at home", "broken",
+)
+_EQUIP_ADDITION_CUES = (
+    "has ", "have ", "got ", "with ", "access to", "available", "owns", "brought",
+)
+
+
 # --- agents (graph nodes) ----------------------------------------------------
 
 def plan(state: GenState) -> dict:
@@ -153,9 +168,52 @@ def plan(state: GenState) -> dict:
         dislikes = dis[0]["d"] if dis else []
         intent["exclude_terms"] = sorted({*intent.get("exclude_terms", []),
                                           *state.get("exclude_terms", []), *dislikes})
+        # Parse equipment polarity from the prompt and fold it into the session
+        # overrides (resolved removals/additions), merged with any passed in via
+        # the clarify loop.
+        exclude_eq, extra_eq = _resolve_equipment(state["prompt"])
+        intent["exclude_equipment"] = sorted({*exclude_eq, *state.get("exclude_equipment", [])})
+        intent["extra_equipment"] = sorted({*extra_eq, *state.get("extra_equipment", [])})
         trace.add("tool", "resolver + longitudinal (deterministic planner)",
                   stage=journey.get("journey_stage"))
+        trace.add("decision", "equipment overrides",
+                  exclude=intent["exclude_equipment"], extra=intent["extra_equipment"])
     return {"journey": journey, "intent": intent}
+
+
+def _equipment_surface() -> dict[str, str]:
+    """Surface form (name + alt_labels, lowercased) -> canonical Equipment name."""
+    surface: dict[str, str] = {}
+    for r in run("MATCH (e:Equipment) RETURN e.name AS name, coalesce(e.alt_labels,[]) AS alts"):
+        surface[r["name"].lower()] = r["name"]
+        for a in r["alts"]:
+            surface[a.lower()] = r["name"]
+    return surface
+
+
+def _resolve_equipment(prompt: str) -> tuple[list[str], list[str]]:
+    """Scan the prompt for known Equipment surface forms and classify each by the
+    nearest polarity cue to its LEFT (removal vs. addition). Mirrors how
+    `detect_clarifications` scans Joint surface forms — deterministic, no LLM.
+    Returns (exclude_equipment, extra_equipment) as canonical names."""
+    pl = f" {prompt.lower()} "
+    surface = _equipment_surface()
+    exclude: set[str] = set()
+    extra: set[str] = set()
+    for surf, canon in surface.items():
+        idx = pl.find(f" {surf} ")
+        if idx < 0:
+            idx = pl.find(f" {surf}")
+        if idx < 0:
+            continue
+        # Look at the run of text preceding the mention for the closest cue.
+        prefix = pl[:idx + 1]
+        rem = max((prefix.rfind(c) for c in _EQUIP_REMOVAL_CUES), default=-1)
+        add = max((prefix.rfind(c) for c in _EQUIP_ADDITION_CUES), default=-1)
+        if rem < 0 and add < 0:
+            continue
+        (exclude if rem > add else extra).add(canon)
+    return sorted(exclude), sorted(extra)
 
 
 def _resolve_intent(prompt: str, muscle_surface: dict[str, str], patterns: list[str]) -> dict:
@@ -171,7 +229,9 @@ def retrieve(state: GenState) -> dict:
     trace, member_id, intent = state["trace"], state["member_id"], state["intent"]
     with trace.step("agent", "retriever"):
         eligible = safety.eligible(member_id, exclude_terms=intent.get("exclude_terms") or None,
-                                   avoid_joints=state.get("avoid_joints") or None)
+                                   avoid_joints=state.get("avoid_joints") or None,
+                                   exclude_equipment=intent.get("exclude_equipment") or None,
+                                   extra_equipment=intent.get("extra_equipment") or None)
         safe_ids = [e["id"] for e in eligible]
         meta = _exercise_meta(safe_ids)
         sem = {r["id"]: r["score"] for r in resolver.semantic_exercise_search(state["prompt"], k=50)}
@@ -236,8 +296,10 @@ def safety_review(state: GenState) -> dict:
 
 
 def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
-    intent = state["intent"]
+    member_id, intent = state["member_id"], state["intent"]
     tm, tp = set(intent.get("target_muscles", [])), set(intent.get("target_patterns", []))
+    excl_eq = intent.get("exclude_equipment") or None
+    extra_eq = intent.get("extra_equipment") or None
     meta = {c["id"]: c for c in state["candidates"]}
     out = []
     for section in ("warmup", "main", "cooldown"):
@@ -255,23 +317,81 @@ def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
             out.append({
                 "exercise_id": p["id"], "name": p["name"],
                 "chosen_because": because or ["fits the available safe pool"],
-                "safe_because": ["does not load an injured joint (part-of checked)",
-                                 "movement pattern not contraindicated",
-                                 "all required equipment available"],
+                "safe_because": _safe_because(member_id, p["id"], excl_eq, extra_eq),
             })
+    return out
+
+
+def _safe_because(member_id: str, exercise_id: str,
+                  exclude_equipment, extra_equipment) -> list[str]:
+    """Derive the safety claim from the graph facts for THIS exercise, so the
+    provenance reflects (and would expose a discrepancy in) the actual joint /
+    pattern / equipment edges rather than asserting a hardcoded constant."""
+    r = safety.safety_reasons(member_id, exercise_id,
+                              exclude_equipment=exclude_equipment,
+                              extra_equipment=extra_equipment)
+    out = []
+    # joints: only assert the no-injury claim when it actually holds (it always
+    # will for a prescribed item, but the wording is built from the facts).
+    if r.get("joint_ok", True):
+        loaded = r.get("joints_loaded") or []
+        if loaded:
+            out.append(f"loads {', '.join(loaded)} — none are injured")
+        else:
+            out.append("loads no injured joint")
+    # pattern
+    patterns = r.get("patterns") or []
+    if patterns:
+        out.append(f"movement pattern {', '.join(patterns)} — not contraindicated")
+    else:
+        out.append("no contraindicated pattern")
+    # equipment
+    req = r.get("required_equipment") or []
+    if req:
+        out.append(f"requires {', '.join(req)} — all available")
+    else:
+        out.append("needs no equipment")
     return out
 
 
 def _filtered_out(member_id: str, intent: dict, limit: int = 5) -> list[dict]:
     """Show what the safety filter removed that the coach might have expected —
-    contraindicated exercises matching the intent, with reasons + alternatives."""
+    contraindicated exercises matching the intent, with reasons + alternatives.
+    Merges joint/pattern contraindications with equipment exclusions, de-duped by
+    id so an exercise dropped for BOTH reasons appears once with both reasons."""
+    excl_eq = intent.get("exclude_equipment") or None
+    extra_eq = intent.get("extra_equipment") or None
     contra = safety.contraindicated(member_id)
+    equip = safety.equipment_filtered(member_id, exclude_equipment=excl_eq,
+                                      extra_equipment=extra_eq)
+    # merge by id, concatenating reasons (an exercise can fail on joint AND kit)
+    merged: dict[str, dict] = {}
+    for c in [*contra, *equip]:
+        if c["id"] in merged:
+            merged[c["id"]]["reasons"] = [*merged[c["id"]]["reasons"], *c["reasons"]]
+        else:
+            merged[c["id"]] = {"id": c["id"], "name": c["name"],
+                               "reasons": list(c["reasons"])}
+    rows = list(merged.values())
+    # Rank what the coach most expects to see first, so the [:limit] cap never
+    # hides it: (0) equipment they EXCLUDED this session — the direct answer to
+    # "no dumbbells"; (1) injury contraindications; (2) baseline missing kit.
+    excl_set = {e.lower() for e in (excl_eq or [])}
+    def _rank(c: dict) -> int:
+        via = {v.lower() for r in c["reasons"] if r["type"] == "equipment"
+               for v in r.get("via", [])}
+        if excl_set & via:
+            return 0
+        if any(r["type"] in ("joint", "pattern") for r in c["reasons"]):
+            return 1
+        return 2
+    rows.sort(key=lambda c: (_rank(c), c["name"]))
     tm = set(intent.get("target_muscles", []))
-    relevant = contra
+    relevant = rows
     if tm:
-        ids = [c["id"] for c in contra]
+        ids = [c["id"] for c in rows]
         meta = _exercise_meta(ids)
-        relevant = [c for c in contra if tm & set(meta.get(c["id"], {}).get("muscles", []))] or contra
+        relevant = [c for c in rows if tm & set(meta.get(c["id"], {}).get("muscles", []))] or rows
     out = []
     for c in relevant[:limit]:
         alts = safety.alternatives(member_id, c["id"], limit=2)
@@ -400,11 +520,77 @@ def detect_clarifications(member_id: str, prompt: str,
     return sorted(j for j in mentioned if j not in known)
 
 
+_EQUIP_NOUN_HINTS = (
+    "cane", "canes", "stool", "block", "blocks", "ball", "rope", "ring", "rings",
+    "strap", "straps", "bar", "bars", "wheel", "roller", "sled", "rack", "bench",
+    "step", "box", "mat", "wall", "trx", "sandbag", "weight", "weights", "plate",
+    "plates", "disc", "wedge", "parallette", "parallettes", "loop", "pad", "chair",
+)
+# Articles/possessives we strip from the front of a candidate kit phrase.
+_EQUIP_STOPHEAD = ("the", "a", "an", "his", "her", "their", "some", "any", "my",
+                   "our", "this", "that", "these", "those")
+
+
+def detect_equipment_clarifications(prompt: str, exclude_equipment: list[str],
+                                    extra_equipment: list[str]) -> list[str]:
+    """Open-vocabulary inclusion gate: a coach saying a member HAS a piece of kit
+    that we can't resolve to any Equipment node (e.g. "handstand canes", "the
+    stool", "yoga blocks") is a real mention we must NOT drop silently. Returns
+    the unresolved candidate terms following an addition cue so the coach can
+    confirm them as available this session. Resolved kit (handled by the planner)
+    and already-confirmed overrides are excluded. Deterministic, no LLM."""
+    pl = f" {prompt.lower()} "
+    if not any(c in pl for c in _EQUIP_ADDITION_CUES):
+        return []
+    surface = _equipment_surface()
+    known_terms = set(surface.keys()) | {v.lower() for v in surface.values()}
+    confirmed = {e.lower() for e in (*exclude_equipment, *extra_equipment)}
+    unresolved: list[str] = []
+    seen: set[str] = set()
+    for cue in _EQUIP_ADDITION_CUES:
+        start = 0
+        while True:
+            i = pl.find(cue, start)
+            if i < 0:
+                break
+            start = i + len(cue)
+            tail = pl[start:]
+            # candidate phrase = words after the cue up to clause punctuation
+            for sep in (",", ".", ";", " and ", " but ", " for ", " to "):
+                tail = tail.split(sep)[0]
+            words = [w for w in tail.split() if w]
+            # drop a leading article/possessive ("the stool" -> "stool")
+            while words and words[0] in _EQUIP_STOPHEAD:
+                words = words[1:]
+            if not words:
+                continue
+            # a candidate is kit-like only if its HEAD or LAST word is a kit noun;
+            # this keeps it open-vocab (we don't enumerate kit) without flagging
+            # muscle/pattern/verb phrases like "access to legs" or "got tired".
+            head, last = words[0], words[-1]
+            if head not in _EQUIP_NOUN_HINTS and last not in _EQUIP_NOUN_HINTS:
+                continue
+            # keep at most the trailing two words as the noun phrase
+            cand = " ".join(words[-2:] if len(words) >= 2 else words).strip()
+            if cand in known_terms or cand in confirmed or cand in seen:
+                continue
+            # if the head noun itself is known kit, the planner already resolved it —
+            # don't re-ask (e.g. "has a bench" where "bench" is a real Equipment node)
+            if last in known_terms:
+                continue
+            seen.add(cand)
+            unresolved.append(cand)
+    return unresolved
+
+
 def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
                    exclude_terms: list[str] | None = None,
                    avoid_joints: list[str] | None = None,
-                   ignore_joints: list[str] | None = None) -> tuple[dict, list[dict]]:
+                   ignore_joints: list[str] | None = None,
+                   exclude_equipment: list[str] | None = None,
+                   extra_equipment: list[str] | None = None) -> tuple[dict, list[dict]]:
     avoid_joints, ignore_joints = avoid_joints or [], ignore_joints or []
+    exclude_equipment, extra_equipment = exclude_equipment or [], extra_equipment or []
     trace = Trace()
     # Gate: an unrecognised avoidance constraint goes back to the coach instead of
     # generating on an assumption. Safety stays deterministic — the graph decides
@@ -412,8 +598,10 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
     with trace.step("agent", "clarify_gate"):
         in_scope = has_fitness_signal(member_id, prompt)
         todo = detect_clarifications(member_id, prompt, avoid_joints, ignore_joints)
+        equip_todo = detect_equipment_clarifications(prompt, exclude_equipment, extra_equipment)
         trace.add("decision", "fitness request?", in_scope=in_scope)
         trace.add("decision", "ambiguous avoidance?", needs=todo)
+        trace.add("decision", "unknown equipment mention?", needs=equip_todo)
     # Off-topic / empty prompt → ask what to train rather than inventing a default.
     if not in_scope:
         name = _member_name(member_id)
@@ -434,6 +622,7 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         return ({
             "member_id": member_id,
             "clarification": {
+                "kind": "joint",   # added for symmetry; existing fields kept intact
                 "joints": todo,
                 "questions": [
                     f"You mentioned the {j}, but {name} has no {j} injury on file. "
@@ -442,9 +631,26 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
                 ],
             },
         }, trace.as_list())
+    # Open-vocabulary inclusion gate: a real kit mention we can't resolve is
+    # surfaced to the coach, never silently dropped.
+    if equip_todo:
+        name = _member_name(member_id)
+        return ({
+            "member_id": member_id,
+            "clarification": {
+                "kind": "equipment",
+                "equipment": equip_todo,
+                "questions": [
+                    f"You mentioned '{t}', which isn't in {name}'s equipment. "
+                    "Should I treat it as available this session?"
+                    for t in equip_todo
+                ],
+            },
+        }, trace.as_list())
     init: GenState = {
         "member_id": member_id, "prompt": prompt, "time_minutes": time_minutes,
         "exclude_terms": exclude_terms or [], "avoid_joints": avoid_joints,
+        "exclude_equipment": exclude_equipment, "extra_equipment": extra_equipment,
         "trace": trace, "revisions": 0,
     }
     final = GRAPH.invoke(init)

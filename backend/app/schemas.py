@@ -21,6 +21,10 @@ class GenerateRequest(BaseModel):
     # ad-hoc, this-session constraints resolved via the clarify loop:
     avoid_joints: list[str] = Field(default_factory=list)   # confirmed avoid
     ignore_joints: list[str] = Field(default_factory=list)  # coach said it's fine
+    # ad-hoc, this-session equipment overrides (parsed from the prompt or
+    # confirmed via the clarify loop):
+    exclude_equipment: list[str] = Field(default_factory=list)  # not available this session
+    extra_equipment: list[str] = Field(default_factory=list)    # available this session
 
 
 # --- Surface B: copilot ---

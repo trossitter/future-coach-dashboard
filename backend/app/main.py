@@ -65,7 +65,9 @@ def roster() -> dict:
         """
         MATCH (m:Member)
         OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
-        RETURN m.id AS id, m.name AS name, collect(DISTINCT i.region) AS injuries
+        OPTIONAL MATCH (m)-[:HAS_ACCESS_TO]->(eq:Equipment)
+        RETURN m.id AS id, m.name AS name, collect(DISTINCT i.region) AS injuries,
+               collect(DISTINCT eq.name) AS equipment
         ORDER BY name
         """
     )
@@ -76,6 +78,7 @@ def roster() -> dict:
         out.append({
             "id": r["id"], "name": r["name"],
             "injuries": [x for x in r["injuries"] if x],
+            "equipment": sorted(x for x in r["equipment"] if x),
             "journey_stage": s.get("journey_stage"),
             "adherence_pct": adh.get("latest_pct"),
             "adherence_trend": adh.get("trend"),
@@ -96,7 +99,8 @@ def generate(req: GenerateRequest) -> dict:
     Returns the structured plan fast; narration is streamed via /generate/stream."""
     result, trace = run_generation(
         req.member_id, req.prompt, req.time_minutes, req.exclude_terms,
-        req.avoid_joints, req.ignore_joints
+        req.avoid_joints, req.ignore_joints,
+        req.exclude_equipment, req.extra_equipment
     )
     return {"result": result, "trace": trace}
 
@@ -107,7 +111,8 @@ def generate_stream(req: GenerateRequest) -> StreamingResponse:
     def events():
         result, trace = run_generation(
             req.member_id, req.prompt, req.time_minutes, req.exclude_terms,
-            req.avoid_joints, req.ignore_joints
+            req.avoid_joints, req.ignore_joints,
+            req.exclude_equipment, req.extra_equipment
         )
         yield f"event: result\ndata: {json.dumps({'result': result, 'trace': trace})}\n\n"
         # A clarification has no plan — skip narration, just close the stream.
