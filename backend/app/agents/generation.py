@@ -49,6 +49,7 @@ class GenState(TypedDict, total=False):
     plan: dict
     provenance: list[dict]
     filtered: list[dict]
+    filtered_summary: dict
     narration: str
     degraded: bool
     revisions: int
@@ -290,10 +291,10 @@ def safety_review(state: GenState) -> dict:
             return {"plan": plan_dict, "revisions": revisions + 1,
                     "needs_revision": True, "force_deterministic": True}
         provenance = _provenance(state, plan_dict)
-        filtered = _filtered_out(member_id, state["intent"],
-                                 avoid_joints=state.get("avoid_joints"))
+        filtered, filtered_summary = _filtered_out(
+            member_id, state["intent"], avoid_joints=state.get("avoid_joints"))
     return {"plan": plan_dict, "provenance": provenance, "filtered": filtered,
-            "needs_revision": False}
+            "filtered_summary": filtered_summary, "needs_revision": False}
 
 
 def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
@@ -401,7 +402,14 @@ def _filtered_out(member_id: str, intent: dict, limit: int = 5,
                                    exclude_equipment=excl_eq, extra_equipment=extra_eq)
         out.append({"id": c["id"], "name": c["name"], "reasons": c["reasons"],
                     "alternatives": [a["name"] for a in alts]})
-    return out
+    # The list above is a capped sample; report the REAL totals so the count
+    # isn't a fixed-looking 5. contra (injury) and equip are disjoint sets, so
+    # the true number removed is their sum — and we split it by reason because
+    # "filtered for safety" is only honest for the injury share.
+    summary = {"total": len(contra) + len(equip),
+               "unsafe": len(contra), "equipment": len(equip),
+               "shown": len(out)}
+    return out, summary
 
 
 NARRATOR_SYSTEM = (
@@ -664,6 +672,7 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         "plan": final["plan"],
         "provenance": final.get("provenance", []),
         "filtered_out": final.get("filtered", []),
+        "filtered_summary": final.get("filtered_summary", {}),
         "journey_stage": final["journey"].get("journey_stage", "unknown"),
         "narration": final.get("narration", ""),
         "degraded": final.get("degraded", False),

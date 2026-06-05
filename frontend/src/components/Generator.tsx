@@ -219,7 +219,7 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
               Why these? (provenance)
             </button>
             <button className="link" onClick={() => setShow(show === "filt" ? null : "filt")}>
-              Filtered for safety ({result.filtered_out.length})
+              Filtered out ({result.filtered_summary?.total ?? result.filtered_out.length})
             </button>
             <button className="link" onClick={() => setShow(show === "graph" ? null : "graph")}>
               Graph evidence
@@ -238,17 +238,24 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
             </div>
           )}
           {show === "filt" && (
-            <div className="detail">
-              {result.filtered_out.map((f: any) => (
-                <div key={f.id} className="prov">
-                  <b className="unsafe">✗ {f.name}</b>
-                  <div className="muted">reasons: {f.reasons.map((r: any) =>
-                    r.via?.length ? `${r.type} (${r.via.join(", ")})` : r.type).join("; ")}</div>
-                  {f.alternatives?.length > 0 &&
-                    <div className="muted">try instead: {f.alternatives.join(", ")}</div>}
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="muted filt-summary">
+                {result.filtered_summary?.unsafe ?? 0} unsafe · {result.filtered_summary?.equipment ?? 0} need equipment
+                {(result.filtered_summary?.total ?? 0) > result.filtered_out.length
+                  ? ` — showing ${result.filtered_out.length} of ${result.filtered_summary.total}` : ""}
+              </div>
+              <div className="detail">
+                {result.filtered_out.map((f: any) => (
+                  <div key={f.id} className="prov">
+                    <b className="unsafe">✗ {f.name}</b>
+                    <div className="muted">reasons: {f.reasons.map((r: any) =>
+                      r.via?.length ? `${r.type} (${r.via.join(", ")})` : r.type).join("; ")}</div>
+                    {f.alternatives?.length > 0 &&
+                      <div className="muted">try instead: {f.alternatives.join(", ")}</div>}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
           {show === "graph" && (
             <GraphEvidence memberName={memberName} injuries={injuries}
