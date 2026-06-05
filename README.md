@@ -27,7 +27,7 @@ flowchart TB
 
   SAFE{{"Deterministic safety filter<br/>(graph traversal — never the prompt)"}}
 
-  subgraph KG["Neo4j — one DB, two subgraphs ◄── single source of truth"]
+  subgraph KG["Neo4j — single source of truth (one database)"]
     K1[("KG1 · Movement / Clinical")]
     K2[("KG2 · Member Context")]
     VEC[["Vector indexes<br/>exercises · chat"]]
@@ -43,7 +43,8 @@ flowchart TB
   B -->|SSE| C --> KG
   G -. structure + narrate .-> LLM
   C -. grounded answer .-> LLM
-  KG --- VEC
+  G -. semantic search .-> VEC
+  C -. chat RAG .-> VEC
   K1 -. exactMatch .- GR
   K2 -. AFFECTS / HAS_ACCESS_TO .- K1
 ```
