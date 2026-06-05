@@ -242,7 +242,8 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
               {result.filtered_out.map((f: any) => (
                 <div key={f.id} className="prov">
                   <b className="unsafe">✗ {f.name}</b>
-                  <div className="muted">reasons: {f.reasons.map((r: any) => r.type).join(", ")}</div>
+                  <div className="muted">reasons: {f.reasons.map((r: any) =>
+                    r.via?.length ? `${r.type} (${r.via.join(", ")})` : r.type).join("; ")}</div>
                   {f.alternatives?.length > 0 &&
                     <div className="muted">try instead: {f.alternatives.join(", ")}</div>}
                 </div>
