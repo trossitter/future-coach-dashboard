@@ -134,6 +134,8 @@ button:hover:not(:disabled) { opacity: 0.86; }
 /* pending edits not yet committed: the primary button shifts to the accent */
 .gen-btn.dirty { background: var(--blue); }
 .pending-note { color: var(--blue); margin-top: 7px; }
+.deliver-row { margin-top: 18px; }
+.sent-note { color: var(--sage); font-size: 13px; }
 .link { background: none; color: var(--blue); padding: 6px 0; text-transform: none; letter-spacing: 0; font-size: 13px; }
 .chip {
   background: transparent; color: var(--ink); border: 1px solid var(--hair);

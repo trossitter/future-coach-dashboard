@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
@@ -122,6 +122,22 @@ def generate_stream(req: GenerateRequest) -> StreamingResponse:
         yield "event: done\ndata: {}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.post("/members/{member_id}/deliver")
+def deliver(member_id: str, body: dict = Body(default={})) -> dict:
+    """On-platform handoff: record the generated plan to the member's record so it
+    lands in their app — the platform-native alternative to exporting or printing."""
+    ids = body.get("exercise_ids") or []
+    run(
+        """
+        MATCH (m:Member {id: $mid})
+        CREATE (m)-[:RECEIVED_PLAN]->(:DeliveredPlan {
+            created: datetime(), exercise_count: $n, summary: $summary})
+        """,
+        mid=member_id, n=len(ids), summary=(body.get("summary") or "")[:200],
+    )
+    return {"delivered": True, "exercise_count": len(ids)}
 
 
 @app.post("/copilot")

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { postSSE } from "../api";
+import { postSSE, postJSON } from "../api";
 import { GraphEvidence } from "./GraphEvidence";
 
 function Section({ title, items }: { title: string; items: any[] }) {
@@ -33,6 +33,7 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
   // off → exclude; clarify loop resolves unrecognised gear → extra)
   const [excludeEquip, setExcludeEquip] = useState<string[]>([]);
   const [extraEquip, setExtraEquip] = useState<string[]>([]);
+  const [sent, setSent] = useState(false);   // plan delivered to the member's app
   // signature of the inputs that produced the shown plan. Lets us flag "unsaved
   // changes" so edits stage quietly instead of auto-regenerating on every
   // keystroke / time tick / equipment toggle.
@@ -47,7 +48,7 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
     avoid = avoidJoints, ignore = ignoreJoints,
     exclude = excludeEquip, extra = extraEquip,
   ) {
-    setLoading(true); setResult(null); setNarration(""); setTrace([]); setClarify(null);
+    setLoading(true); setResult(null); setNarration(""); setTrace([]); setClarify(null); setSent(false);
     await postSSE("/generate/stream",
       { member_id: memberId, prompt, time_minutes: time,
         avoid_joints: avoid, ignore_joints: ignore,
@@ -88,6 +89,15 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
   function toggleEquip(name: string) {
     setExcludeEquip((cur) =>
       cur.includes(name) ? cur.filter((e) => e !== name) : [...cur, name]);
+  }
+
+  // on-platform handoff: deliver the plan to the member's app/record rather than
+  // exporting or printing it off-platform.
+  async function deliver() {
+    const ids = (["warmup", "main", "cooldown"] as const)
+      .flatMap((s) => (result.plan[s] || []).map((p: any) => p.id));
+    await postJSON(`/members/${memberId}/deliver`, { exercise_ids: ids, summary: prompt });
+    setSent(true);
   }
 
   return (
@@ -212,6 +222,16 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
             <Section title="Warmup" items={result.plan.warmup} />
             <Section title="Main" items={result.plan.main} />
             <Section title="Cooldown" items={result.plan.cooldown} />
+          </div>
+
+          <div className="deliver-row">
+            {sent ? (
+              <span className="sent-note">Sent to {memberName || "the member"} — it's in their plan ✓</span>
+            ) : (
+              <button className="gen-btn" onClick={deliver} disabled={loading}>
+                Send to {memberName || "member"}
+              </button>
+            )}
           </div>
 
           <div className="evidence-row">
