@@ -56,6 +56,34 @@ recommendation is explainable by the path that produced it.
 The two graphs meet at `Injury -[:AFFECTS]-> Joint` and
 `Member -[:HAS_ACCESS_TO]-> Equipment`: KG2 context drives KG1 safety traversal.
 
+## Edge naming — PRD vocabulary alignment
+
+The PRD describes the clinical graph in domain verbs (`stresses`, `targets`,
+`requires`, `part-of`, `contraindicated-for`). We store those relationships under
+Neo4j's idiom — `UPPER_SNAKE_CASE`, read as an active verb left-to-right along
+`(from)-[:EDGE]->(to)`. The two vocabularies are **SKOS `exactMatch`**: same
+concept, different label register. This is the same principle the node layer
+already uses (`Muscle`/`Joint` carry `alt_labels` for gym jargon) lifted to the
+edge layer, so the stored graph stays self-documenting against the spec.
+
+| PRD term | Stored edge | From → To | Why the rename |
+|----------|-------------|-----------|----------------|
+| `stresses` | `LOADS` | Exercise → Joint | active voice; "loads the knee" reads on the traversal |
+| `targets` | `TARGETS` | Exercise → Muscle | identical |
+| `requires` | `REQUIRES` | Exercise → Equipment | identical |
+| `part-of` | `PART_OF` | Joint → Joint/Region | hyphen → snake; semantics unchanged |
+| `contraindicated-for` | `CONTRAINDICATES` | Injury → MovementPattern | active voice; the injury is the subject that contraindicates |
+
+The single safety-critical alias is **`stresses` → `LOADS`**: the deterministic
+contraindication query (below) walks `LOADS` together with `PART_OF`, so anyone
+auditing the rule against the PRD needs this one mapping to follow it. Edges added
+beyond the PRD's vocabulary (`HAS_PATTERN`, `PAIRS_WITH`, and all KG2 `HAS_*`
+edges) are implementation structure, not spec concepts, and carry no PRD alias.
+
+The contract is fixed-arity and single-typed: every edge above has exactly one
+`(from-label, to-label)` shape — there are no polymorphic edges — which is what
+lets the safety traversal assume the path it matches is the path it filtered on.
+
 ## The queries that matter (all in `app/safety.py`)
 
 **Contraindicated** — injury via the anatomy hierarchy *or* a contraindicated pattern:
