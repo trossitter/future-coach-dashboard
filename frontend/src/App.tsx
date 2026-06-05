@@ -55,9 +55,10 @@ export default function App() {
           <h1 className="display">{headline}</h1>
           <div className="rule" />
           <p className="lede">
-            Recommendations are driven by the knowledge graph — safe, explainable,
-            and grounded in each member's own data. Choose a member to begin.
+            Their whole picture, in one place. Build safe, personal sessions and
+            get grounded answers — fast.
           </p>
+          <div className="hero-cta">Select a member to begin →</div>
         </div>
       </section>
 

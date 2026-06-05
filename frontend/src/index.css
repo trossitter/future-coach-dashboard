@@ -73,6 +73,7 @@ body {
 
 .hero-aside { z-index: 2; padding-top: 6px; }
 .lede { font-size: 15px; line-height: 1.7; color: #43454c; max-width: 32ch; }
+.hero-cta { margin-top: 18px; font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); }
 
 /* the athlete is a FIXED background — stays put while content scrolls over it */
 .bg-figure { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
