@@ -87,8 +87,7 @@ personalization better, never worse.
 
 ## Ontology grounding — what we pull, and why
 
-The brief is explicit that a *small, well-justified subset used meaningfully*
-beats wiring up everything. Our choices:
+Our choices:
 
 - **SKOS** — the mapping layer. Gym-jargon `alt_labels` are `skos:altLabel`
   (resolver matches them deterministically); SNOMED codes are `skos:exactMatch`.
