@@ -22,25 +22,66 @@ MODEL = settings.claude_model
 T = TypeVar("T", bound=BaseModel)
 
 # --- token budget -----------------------------------------------------------
-# Cumulative input+output tokens spent this process. Checked BEFORE each call
-# (so we stop querying once over) and incremented AFTER (so the in-flight call
-# completes). One call may overshoot the ceiling slightly; that's intentional.
-_tokens_used = 0
+# Cumulative input+output tokens spent. Checked BEFORE each call (so we stop
+# querying once over) and incremented AFTER (so the in-flight call completes).
+# One call may overshoot the ceiling slightly; that's intentional.
+#
+# The durable source of truth is a Neo4j singleton (:SystemUsage {id:'llm'}),
+# incremented atomically — so the budget is SHARED across replicas and SURVIVES
+# a process restart (an in-memory counter would reset to 0 on every redeploy,
+# silently handing each new process a fresh budget). The module-level int below
+# is a fast mirror and the fallback if Neo4j is momentarily unreachable, so a DB
+# blip degrades to per-process accounting rather than crashing the request path.
+_USAGE_ID = "llm"
+_tokens_used = 0  # in-memory mirror / fallback
+
+
+def _db_add(delta: int) -> None:
+    """Atomically add to the durable counter and sync the in-memory mirror."""
+    global _tokens_used
+    from .db import run
+    rows = run(
+        "MERGE (u:SystemUsage {id: $id}) "
+        "SET u.tokens = coalesce(u.tokens, 0) + $d "
+        "RETURN u.tokens AS total",
+        id=_USAGE_ID, d=delta,
+    )
+    if rows:
+        _tokens_used = rows[0]["total"]
 
 
 def tokens_used() -> int:
+    """Durable total from Neo4j; falls back to the in-memory mirror on DB error."""
+    global _tokens_used
+    try:
+        from .db import run
+        rows = run(
+            "MATCH (u:SystemUsage {id: $id}) RETURN u.tokens AS total", id=_USAGE_ID
+        )
+        if rows and rows[0]["total"] is not None:
+            _tokens_used = rows[0]["total"]
+    except Exception:
+        pass  # Neo4j unreachable — serve the last-known in-memory value
     return _tokens_used
 
 
 def budget_exhausted() -> bool:
-    return settings.llm_token_budget > 0 and _tokens_used >= settings.llm_token_budget
+    return settings.llm_token_budget > 0 and tokens_used() >= settings.llm_token_budget
 
 
 def _account(usage) -> None:
     global _tokens_used
-    if usage is not None:
-        _tokens_used += (getattr(usage, "input_tokens", 0) or 0) + \
-                        (getattr(usage, "output_tokens", 0) or 0)
+    if usage is None:
+        return
+    delta = (getattr(usage, "input_tokens", 0) or 0) + \
+            (getattr(usage, "output_tokens", 0) or 0)
+    if delta <= 0:
+        return
+    _tokens_used += delta  # mirror first, so a DB failure still records spend
+    try:
+        _db_add(delta)
+    except Exception:
+        pass  # durable write failed — in-memory mirror already updated
 
 
 def is_available() -> bool:
