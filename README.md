@@ -83,8 +83,9 @@ in immediately and the sentence then assembles word by word.
 
 ## Run it (one command)
 
-**Requires Docker Desktop (Compose v2).** No local Python/Node needed — everything
-runs in containers.
+**Requires Docker with Compose v2** — Docker Desktop, OrbStack, Colima, or a Linux
+Docker Engine all work. No local Python/Node/Neo4j needed; everything runs in
+containers.
 
 ```bash
 docker compose up --build        # neo4j + backend + frontend
