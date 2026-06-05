@@ -58,10 +58,10 @@ export function GraphEvidence({ memberName, injuries, plan, filtered }: any) {
         }}
       />
       <div className="legend">
-        <span className="dot" style={{ background: "#5b8def" }} /> member
-        <span className="dot" style={{ background: "#e0a458" }} /> injury
-        <span className="dot" style={{ background: "#46c19a" }} /> chosen (safe)
-        <span className="dot" style={{ background: "#e2557b" }} /> filtered (contraindicated)
+        <span className="dot" style={{ background: color("member") }} /> member
+        <span className="dot" style={{ background: color("injury") }} /> injury
+        <span className="dot" style={{ background: color("safe") }} /> chosen (safe)
+        <span className="dot" style={{ background: color("unsafe") }} /> filtered (contraindicated)
       </div>
     </div>
   );
