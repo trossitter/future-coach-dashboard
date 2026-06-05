@@ -14,6 +14,12 @@ squats for her?"* by pointing at the exact graph path that produced the decision
 ## Architecture
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{
+  'primaryColor':'#edeef1','primaryTextColor':'#16161a',
+  'primaryBorderColor':'#7c2f3d','lineColor':'#7c2f3d',
+  'secondaryColor':'#e7e9ec','tertiaryColor':'#f5f6f8',
+  'clusterBkg':'#f5f6f8','clusterBorder':'#c9ccd2',
+  'edgeLabelBackground':'#ffffff','fontSize':'14px'}}}%%
 flowchart TB
   subgraph UI["Coach dashboard · React + Vite"]
     A["Workout Generator (Surface A)"]
@@ -58,6 +64,9 @@ Free text → resolved onto canonical graph concepts (3-pass resolver) → graph
 traversal makes the safe, auditable decision → the LLM phrases it. The two graphs
 meet at `Injury -[:AFFECTS]-> Joint` and `Member -[:HAS_ACCESS_TO]-> Equipment`,
 so member context drives clinical safety.
+
+The vector indexes (exercise semantics · chat history) only **widen retrieval
+recall** — they never make the safety call.
 
 ### Request/response vs. streaming — when output reaches the client
 
