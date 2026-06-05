@@ -153,9 +153,15 @@ def why_skipped(member_id: str, exercise_id: str) -> list[dict]:
     return joint + pattern + equip
 
 
-def alternatives(member_id: str, exercise_id: str, limit: int = 5) -> list[dict]:
-    """Safe, equipment-feasible swaps for a filtered exercise: same movement
-    pattern or muscle, ranked by pattern overlap."""
+def alternatives(member_id: str, exercise_id: str, limit: int = 5, *,
+                 avoid_joints: list[str] | None = None,
+                 exclude_equipment: list[str] | None = None,
+                 extra_equipment: list[str] | None = None) -> list[dict]:
+    """Safe, feasible swaps for a filtered exercise: same movement pattern or
+    muscle, ranked by pattern overlap. Honors the SAME session constraints as the
+    plan (avoided joints + this-session equipment), so a suggested swap is never
+    itself something the coach excluded — no "try instead: X" where X needs the
+    very gear that was just removed."""
     q = f"""
         MATCH (orig:Exercise {{id: $exid}})
         OPTIONAL MATCH (orig)-[:HAS_PATTERN]->(pp:MovementPattern)
@@ -168,13 +174,16 @@ def alternatives(member_id: str, exercise_id: str, limit: int = 5) -> list[dict]
           AND NOT {INJURY_JOINT_UNSAFE}
           AND NOT {INJURY_PATTERN_UNSAFE}
           AND NOT {EQUIP_INFEASIBLE}
+          AND NOT {AVOID_JOINT_UNSAFE}
         WITH ex, size([p IN pats WHERE (ex)-[:HAS_PATTERN]->(p)]) AS pat_overlap
         RETURN ex.id AS id, ex.name AS name, pat_overlap
         ORDER BY pat_overlap DESC, name
         LIMIT $limit
     """
     return run(q, id=member_id, exid=exercise_id, limit=limit,
-               exclude_equipment=[], extra_equipment=[])
+               avoid_joints=avoid_joints or [],
+               exclude_equipment=exclude_equipment or [],
+               extra_equipment=extra_equipment or [])
 
 
 def equipment_filtered(member_id: str, *,

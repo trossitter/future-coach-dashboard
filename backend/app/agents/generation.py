@@ -290,7 +290,8 @@ def safety_review(state: GenState) -> dict:
             return {"plan": plan_dict, "revisions": revisions + 1,
                     "needs_revision": True, "force_deterministic": True}
         provenance = _provenance(state, plan_dict)
-        filtered = _filtered_out(member_id, state["intent"])
+        filtered = _filtered_out(member_id, state["intent"],
+                                 avoid_joints=state.get("avoid_joints"))
     return {"plan": plan_dict, "provenance": provenance, "filtered": filtered,
             "needs_revision": False}
 
@@ -354,7 +355,8 @@ def _safe_because(member_id: str, exercise_id: str,
     return out
 
 
-def _filtered_out(member_id: str, intent: dict, limit: int = 5) -> list[dict]:
+def _filtered_out(member_id: str, intent: dict, limit: int = 5,
+                  avoid_joints: list[str] | None = None) -> list[dict]:
     """Show what the safety filter removed that the coach might have expected —
     contraindicated exercises matching the intent, with reasons + alternatives.
     Merges joint/pattern contraindications with equipment exclusions, de-duped by
@@ -394,7 +396,9 @@ def _filtered_out(member_id: str, intent: dict, limit: int = 5) -> list[dict]:
         relevant = [c for c in rows if tm & set(meta.get(c["id"], {}).get("muscles", []))] or rows
     out = []
     for c in relevant[:limit]:
-        alts = safety.alternatives(member_id, c["id"], limit=2)
+        alts = safety.alternatives(member_id, c["id"], limit=2,
+                                   avoid_joints=avoid_joints,
+                                   exclude_equipment=excl_eq, extra_equipment=extra_eq)
         out.append({"id": c["id"], "name": c["name"], "reasons": c["reasons"],
                     "alternatives": [a["name"] for a in alts]})
     return out
