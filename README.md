@@ -285,3 +285,24 @@ streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz 
 charts · clarify-before-generate · confidence-gated copilot routing · chat history
 + images · grounded follow-ups · input-size guards · tests (14) · eval ·
 one-command Docker. Synthetic data only.
+
+---
+
+## Where this goes next
+
+Three threads I'd build under the same graph-owns-the-reasoning principle — noted
+here as direction, not solved:
+
+- **Clinician-in-the-loop governance for contraindication edges.** Today the
+  `CONTRAINDICATES` rules are a hand-rolled starter map. In production they need
+  an owner: who signs a rule, how it's versioned, and how a change is reviewed
+  before it filters a real member's plan. The edges become governed clinical
+  artifacts with provenance, not code constants.
+- **The labs→condition→prescription path, end-to-end.** The lab layer already
+  surfaces flagged markers; the next step is to traverse from a lab finding to the
+  condition it implies to the training/lifestyle prescription it warrants — the
+  same deterministic, explainable graph path, extended through the clinical middle.
+- **A medication / dose-phase model.** For GLP-1 and similar, where the member is
+  in their titration changes what's safe and what's appropriate to prescribe.
+  Modeling medication and dose phase as first-class nodes lets the graph reason
+  over it the way it already reasons over injuries and equipment.
