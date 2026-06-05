@@ -59,7 +59,23 @@ personalization better, never worse.
 - **Stable IDs** (exercises already carry UUIDs; concepts should too) let
   external systems integrate by identity, not by label — which also unlocks i18n.
 
-## Scaling (e.g. +50,000 exercises)
+## Scaling — the axes that actually count
+
+The catalog (+50,000 exercises) is the *least* threatening axis: it's **bounded**
+— there is no universe with infinite exercises, and a native ANN index over
+bounded concept vocabularies absorbs it. What grows *without limit* is **members,
+member × time, and the chat corpus** — that's where to look first.
+
+**Unbounded — what actually counts:**
+
+| Axis | Why it's the real load | Where it bites → the fix |
+|------|------------------------|--------------------------|
+| Members (tenants) | KG2 is one subgraph per person; growth is linear in members | queries are member-scoped (`MATCH (m:Member {id})…`) so they stay **local** — good. But `/roster` fans out `longitudinal.summary()` **per member** (N+1, `main.py`) → batch + paginate. And the durable token counter is a single global `(:SystemUsage {id:'llm'})` node — a write hotspot under concurrency → shard per tenant or move to a Redis `INCR`. |
+| Member × time | adherence weeks, Oura readings, weight, chat accrue **forever** per member — a 3-year member is thousands of nodes | the graph should hold *derived signals*, not bulk telemetry → time-bound queries + roll raw series into weekly/monthly summary nodes (or offload raw series to a time-series store). |
+| Chat / embedding corpus | all members' messages dwarf 50k exercises — the **dominant** vector set | today `_retrieve_general` over-fetches the global `chat_embedding` top-k **then** filters by member (`copilot.py` — ANN-*then*-filter; fine at this scale, but at many members the global top-k can miss the target member entirely) → metadata-prefiltered / per-member-partitioned ANN (filter-*before*-ANN). Re-embedding the whole corpus on a model change is the real one-off cost. |
+| LLM throughput | the external ceiling, not ours — Anthropic tokens/min + concurrency | per-tenant budgets, request queueing, prompt-cache amortization; the token-budget guard is step one. |
+
+**Bounded — the catalog (+50,000 exercises):**
 
 | Path | Behavior at scale | Why |
 |------|-------------------|-----|
