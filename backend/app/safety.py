@@ -28,10 +28,18 @@ EXISTS {
 }
 """
 
-EQUIP_UNAVAILABLE = """
+# Equipment feasibility, session-aware: an exercise is infeasible if it requires
+# equipment the member can't use. Coach-added equipment ($extra_equipment) counts
+# as available even without a stored edge; coach-excluded equipment
+# ($exclude_equipment) counts as unavailable even if on file. With both lists
+# empty this is just "requires equipment the member has no HAS_ACCESS_TO edge for",
+# so callers without session context (e.g. alternatives()) pass [].
+EQUIP_INFEASIBLE = """
 EXISTS {
     MATCH (ex)-[:REQUIRES]->(eq:Equipment)
-    WHERE NOT (:Member {id: $id})-[:HAS_ACCESS_TO]->(eq)
+    WHERE (NOT (:Member {id: $id})-[:HAS_ACCESS_TO]->(eq)
+           AND NOT eq.name IN $extra_equipment)
+       OR eq.name IN $exclude_equipment
 }
 """
 
@@ -86,15 +94,19 @@ def contraindicated(member_id: str) -> list[dict]:
 def eligible(member_id: str, *, muscle: str | None = None,
              pattern: str | None = None,
              exclude_terms: list[str] | None = None,
-             avoid_joints: list[str] | None = None) -> list[dict]:
+             avoid_joints: list[str] | None = None,
+             exclude_equipment: list[str] | None = None,
+             extra_equipment: list[str] | None = None) -> list[dict]:
     """Exercises that are injury-safe, pattern-safe, and equipment-feasible —
-    optionally narrowed to a muscle/pattern, minus excluded name terms, and minus
-    any joints the coach confirmed to avoid this session (clarify loop)."""
+    optionally narrowed to a muscle/pattern, minus excluded name terms, minus
+    any joints the coach confirmed to avoid this session (clarify loop), and with
+    session equipment overrides ($extra_equipment available, $exclude_equipment
+    unavailable)."""
     q = f"""
         MATCH (ex:Exercise)
         WHERE NOT {INJURY_JOINT_UNSAFE}
           AND NOT {INJURY_PATTERN_UNSAFE}
-          AND NOT {EQUIP_UNAVAILABLE}
+          AND NOT {EQUIP_INFEASIBLE}
           AND NOT {AVOID_JOINT_UNSAFE}
           AND ($muscle IS NULL OR (ex)-[:TARGETS]->(:Muscle {{name: $muscle}}))
           AND ($pattern IS NULL OR (ex)-[:HAS_PATTERN]->(:MovementPattern {{name: $pattern}}))
@@ -104,7 +116,9 @@ def eligible(member_id: str, *, muscle: str | None = None,
     """
     return run(q, id=member_id, muscle=muscle, pattern=pattern,
                terms=[t.lower() for t in exclude_terms] if exclude_terms else None,
-               avoid_joints=avoid_joints or [])
+               avoid_joints=avoid_joints or [],
+               exclude_equipment=exclude_equipment or [],
+               extra_equipment=extra_equipment or [])
 
 
 def why_skipped(member_id: str, exercise_id: str) -> list[dict]:
@@ -153,10 +167,84 @@ def alternatives(member_id: str, exercise_id: str, limit: int = 5) -> list[dict]
                OR ANY(mu IN muscles WHERE (ex)-[:TARGETS]->(mu)))
           AND NOT {INJURY_JOINT_UNSAFE}
           AND NOT {INJURY_PATTERN_UNSAFE}
-          AND NOT {EQUIP_UNAVAILABLE}
+          AND NOT {EQUIP_INFEASIBLE}
         WITH ex, size([p IN pats WHERE (ex)-[:HAS_PATTERN]->(p)]) AS pat_overlap
         RETURN ex.id AS id, ex.name AS name, pat_overlap
         ORDER BY pat_overlap DESC, name
         LIMIT $limit
     """
-    return run(q, id=member_id, exid=exercise_id, limit=limit)
+    return run(q, id=member_id, exid=exercise_id, limit=limit,
+               exclude_equipment=[], extra_equipment=[])
+
+
+def equipment_filtered(member_id: str, *,
+                       exclude_equipment: list[str] | None = None,
+                       extra_equipment: list[str] | None = None) -> list[dict]:
+    """Exercises removed for EQUIPMENT reasons only — injury-safe but missing (or
+    coach-excluded) required equipment. Shaped to mirror contraindicated() so
+    generation can merge the two filtered sets without de-duplicating."""
+    q = f"""
+        MATCH (ex:Exercise)
+        WHERE NOT {INJURY_JOINT_UNSAFE}
+          AND NOT {INJURY_PATTERN_UNSAFE}
+          AND {EQUIP_INFEASIBLE}
+        MATCH (ex)-[:REQUIRES]->(eq:Equipment)
+        WHERE (NOT (:Member {{id: $id}})-[:HAS_ACCESS_TO]->(eq)
+               AND NOT eq.name IN $extra_equipment)
+           OR eq.name IN $exclude_equipment
+        RETURN ex.id AS id, ex.name AS name,
+               collect(DISTINCT eq.name) AS via
+        ORDER BY name
+    """
+    rows = run(q, id=member_id,
+               exclude_equipment=exclude_equipment or [],
+               extra_equipment=extra_equipment or [])
+    return [{"id": r["id"], "name": r["name"], "injuries": [],
+             "reasons": [{"type": "equipment", "via": r["via"]}]} for r in rows]
+
+
+def safety_reasons(member_id: str, exercise_id: str, *,
+                   exclude_equipment: list[str] | None = None,
+                   extra_equipment: list[str] | None = None) -> dict:
+    """Derived per-exercise safety facts for the provenance layer to render.
+
+    All checks are deterministic graph traversals reusing the exact part-of and
+    contraindication semantics of the eligibility fragments. A false positive on
+    any `*_ok` flag would be a safety regression, so each flag is computed from
+    the same edges that drive filtering."""
+    row = run(
+        f"""
+        MATCH (ex:Exercise {{id: $exid}})
+        // injured_joints: directly-affected joints plus their part-of expansion
+        // in both directions, matching the conflict test in INJURY_JOINT_UNSAFE.
+        CALL () {{
+            MATCH (:Member {{id: $id}})-[:HAS_INJURY]->(:Injury)-[:AFFECTS]->(ij:Joint)
+            OPTIONAL MATCH (rel:Joint)
+            WHERE (rel)-[:PART_OF*0..]->(ij) OR (ij)-[:PART_OF*0..]->(rel)
+            RETURN collect(DISTINCT rel.name) AS injured_joints
+        }}
+        OPTIONAL MATCH (ex)-[:LOADS]->(j:Joint)
+        OPTIONAL MATCH (ex)-[:HAS_PATTERN]->(p:MovementPattern)
+        OPTIONAL MATCH (ex)-[:REQUIRES]->(eq:Equipment)
+        RETURN
+          collect(DISTINCT j.name)  AS joints_loaded,
+          injured_joints,
+          collect(DISTINCT p.name)  AS patterns,
+          collect(DISTINCT eq.name) AS required_equipment,
+          NOT {INJURY_JOINT_UNSAFE}    AS joint_ok,
+          NOT {INJURY_PATTERN_UNSAFE}  AS pattern_ok,
+          NOT {EQUIP_INFEASIBLE}       AS equipment_ok
+        """,
+        id=member_id, exid=exercise_id,
+        exclude_equipment=exclude_equipment or [],
+        extra_equipment=extra_equipment or [],
+    )[0]
+    return {
+        "joints_loaded": row["joints_loaded"],
+        "injured_joints": row["injured_joints"],
+        "joint_ok": row["joint_ok"],
+        "patterns": row["patterns"],
+        "pattern_ok": row["pattern_ok"],
+        "required_equipment": row["required_equipment"],
+        "equipment_ok": row["equipment_ok"],
+    }
