@@ -7,14 +7,6 @@ export async function getJSON<T = any>(path: string): Promise<T> {
   return r.json();
 }
 
-export async function postJSON<T = any>(path: string, body: unknown): Promise<T> {
-  const r = await fetch(BASE + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return r.json();
-}
 
 /** POST and consume a Server-Sent Events stream parsed from the fetch body. */
 export async function postSSE(

@@ -65,7 +65,7 @@ POST opens the connection, the server then **pushes a sequence of output frames*
 (`event: <name>\ndata: <json>\n\n`) over that held-open connection.
 
 - **Plain request → one JSON blob** (connection responds once, closes):
-  `GET /members`, `GET /members/{id}/chat`, `GET /.../charts/{kind}`, `POST /generate`.
+  `GET /roster`, `GET /members/{id}/chat`, `GET /.../charts/{kind}`, `POST /generate`.
 - **SSE stream → many output frames** (`POST /generate/stream`, `POST /copilot`).
   The **graph-derived truth is emitted first**, before the LLM is even called, so
   it is never blocked behind LLM latency; the prose streams after:

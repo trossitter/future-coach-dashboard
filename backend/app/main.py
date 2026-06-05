@@ -58,21 +58,6 @@ def usage() -> dict:
     }
 
 
-@app.get("/members")
-def members() -> dict:
-    rows = run(
-        """
-        MATCH (m:Member)
-        OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
-        RETURN m.id AS id, m.name AS name, m.tier AS tier,
-               m.adherence_trend AS adherence_trend,
-               collect(DISTINCT i.region) AS injuries
-        ORDER BY name
-        """
-    )
-    return {"count": len(rows), "members": rows}
-
-
 @app.get("/roster")
 def roster() -> dict:
     """Coach overview: every member with the at-a-glance triage signals."""

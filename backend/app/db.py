@@ -21,7 +21,3 @@ def run(cypher: str, **params) -> list[dict]:
     with get_driver().session() as session:
         result = session.run(cypher, **params)
         return [record.data() for record in result]
-
-
-def close() -> None:
-    get_driver.cache_clear()

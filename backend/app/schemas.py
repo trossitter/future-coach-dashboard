@@ -44,15 +44,6 @@ class RouteDecision(BaseModel):
         description="if the question is ambiguous, a short either/or question for the coach")
 
 
-class Intent(BaseModel):
-    """Planner output — the coach's prompt resolved onto graph concepts."""
-    target_muscles: list[str] = Field(default_factory=list)
-    target_patterns: list[str] = Field(default_factory=list)
-    exclude_terms: list[str] = Field(default_factory=list)
-    emphasis: str = ""
-    summary: str = ""
-
-
 class Prescription(BaseModel):
     id: str
     name: str
@@ -63,25 +54,7 @@ class Prescription(BaseModel):
 
 
 class WorkoutPlan(BaseModel):
+    """Assembler's structured output — the LLM fills sections from the safe set."""
     warmup: list[Prescription] = Field(default_factory=list)
     main: list[Prescription] = Field(default_factory=list)
     cooldown: list[Prescription] = Field(default_factory=list)
-
-
-class ProvenanceEntry(BaseModel):
-    """PROV-O-style trace for one selected exercise."""
-    exercise_id: str
-    name: str
-    chosen_because: list[str]       # graph paths / intent matches
-    safe_because: list[str]         # what safety checks it passed
-
-
-class GenerationResult(BaseModel):
-    member_id: str
-    intent: Intent
-    plan: WorkoutPlan
-    provenance: list[ProvenanceEntry]
-    filtered_out: list[dict]        # what was excluded for safety + alternatives
-    journey_stage: str
-    narration: str = ""             # LLM phrasing (empty when no key)
-    degraded: bool = False          # true when running without the LLM
