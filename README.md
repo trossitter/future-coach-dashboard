@@ -83,6 +83,9 @@ in immediately and the sentence then assembles word by word.
 
 ## Run it (one command)
 
+**Requires Docker Desktop (Compose v2).** No local Python/Node needed — everything
+runs in containers.
+
 ```bash
 docker compose up --build        # neo4j + backend + frontend
 curl -X POST localhost:8000/ingest    # load the graph (once)
@@ -102,7 +105,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 > First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
-> A studio image dropped at `frontend/public/athlete.jpg` completes the hero.
 
 **Tests & evaluation:**
 ```bash
