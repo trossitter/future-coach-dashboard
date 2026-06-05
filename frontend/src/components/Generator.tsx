@@ -33,6 +33,15 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
   // off → exclude; clarify loop resolves unrecognised gear → extra)
   const [excludeEquip, setExcludeEquip] = useState<string[]>([]);
   const [extraEquip, setExtraEquip] = useState<string[]>([]);
+  // signature of the inputs that produced the shown plan. Lets us flag "unsaved
+  // changes" so edits stage quietly instead of auto-regenerating on every
+  // keystroke / time tick / equipment toggle.
+  const [lastSig, setLastSig] = useState("");
+  const sig = (p = prompt, t = time, aj = avoidJoints, ij = ignoreJoints,
+               ex = excludeEquip, xt = extraEquip) =>
+    JSON.stringify([p, t, [...aj].sort(), [...ij].sort(),
+                    [...ex].sort(), [...xt].sort()]);
+  const dirty = !!result && sig() !== lastSig;
 
   async function run(
     avoid = avoidJoints, ignore = ignoreJoints,
@@ -46,7 +55,10 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
       (ev, data) => {
         if (ev === "result") {
           if (data.result.clarification) setClarify(data.result.clarification);
-          else setResult(data.result);
+          else {
+            setResult(data.result);
+            setLastSig(sig(prompt, time, avoid, ignore, exclude, extra));
+          }
           setTrace(data.trace);
         } else if (ev === "narration") setNarration((n) => n + data);
       });
@@ -71,12 +83,11 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
   }
 
   // coach toggles one of the member's own equipment chips off/on for this
-  // session → adds/removes it from exclude_equipment and re-generates.
+  // session. Staged only — it does NOT regenerate. The coach commits this (with
+  // any other tweaks) via the primary button, so chip clicks never surprise-run.
   function toggleEquip(name: string) {
-    const on = !excludeEquip.includes(name);
-    const next = on ? [...excludeEquip, name] : excludeEquip.filter((e) => e !== name);
-    setExcludeEquip(next);
-    run(avoidJoints, ignoreJoints, next, extraEquip);
+    setExcludeEquip((cur) =>
+      cur.includes(name) ? cur.filter((e) => e !== name) : [...cur, name]);
   }
 
   return (
@@ -89,10 +100,14 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
           <input type="number" value={time} min={15} max={90}
             onChange={(e) => setTime(+e.target.value)} /> min
         </label>
-        <button onClick={() => run()} disabled={loading || !memberId}>
-          {loading ? "Generating…" : "Generate"}
+        <button className={"gen-btn" + (dirty ? " dirty" : "")}
+          onClick={() => run()} disabled={loading || !memberId}>
+          {loading ? "Generating…" : !result ? "Generate" : dirty ? "Update plan" : "Regenerate"}
         </button>
       </div>
+      {result && dirty && !loading && (
+        <div className="muted pending-note">Unsaved changes — “Update plan” to apply.</div>
+      )}
 
       {equipment?.length > 0 && (
         <div className="equip-chips">
@@ -169,9 +184,12 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
         </div>
       )}
 
-      {avoidJoints.length > 0 && (result || clarify) && (
+      {(avoidJoints.length > 0 || excludeEquip.length > 0) && (
         <div className="muted constraint-note">
-          Avoiding this session: {avoidJoints.join(", ")} (coach-confirmed)
+          This session:
+          {avoidJoints.length > 0 ? ` avoiding ${avoidJoints.join(", ")}` : ""}
+          {avoidJoints.length > 0 && excludeEquip.length > 0 ? " ·" : ""}
+          {excludeEquip.length > 0 ? ` skipping ${excludeEquip.join(", ")}` : ""}
         </div>
       )}
 
