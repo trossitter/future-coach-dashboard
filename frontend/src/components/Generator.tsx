@@ -17,7 +17,7 @@ function Section({ title, items }: { title: string; items: any[] }) {
   );
 }
 
-export function Generator({ memberId, memberName, injuries }: any) {
+export function Generator({ memberId, memberName, injuries, equipment }: any) {
   const [prompt, setPrompt] = useState("");
   const [time, setTime] = useState(45);
   const [loading, setLoading] = useState(false);
@@ -29,12 +29,20 @@ export function Generator({ memberId, memberName, injuries }: any) {
   const [clarify, setClarify] = useState<any>(null);
   const [avoidJoints, setAvoidJoints] = useState<string[]>([]);
   const [ignoreJoints, setIgnoreJoints] = useState<string[]>([]);
+  // ad-hoc, this-session equipment constraints (coach toggles a member's gear
+  // off → exclude; clarify loop resolves unrecognised gear → extra)
+  const [excludeEquip, setExcludeEquip] = useState<string[]>([]);
+  const [extraEquip, setExtraEquip] = useState<string[]>([]);
 
-  async function run(avoid = avoidJoints, ignore = ignoreJoints) {
+  async function run(
+    avoid = avoidJoints, ignore = ignoreJoints,
+    exclude = excludeEquip, extra = extraEquip,
+  ) {
     setLoading(true); setResult(null); setNarration(""); setTrace([]); setClarify(null);
     await postSSE("/generate/stream",
       { member_id: memberId, prompt, time_minutes: time,
-        avoid_joints: avoid, ignore_joints: ignore },
+        avoid_joints: avoid, ignore_joints: ignore,
+        exclude_equipment: exclude, extra_equipment: extra },
       (ev, data) => {
         if (ev === "result") {
           if (data.result.clarification) setClarify(data.result.clarification);
@@ -54,6 +62,23 @@ export function Generator({ memberId, memberName, injuries }: any) {
     run(nextAvoid, nextIgnore);
   }
 
+  // coach confirms (or skips) a piece of equipment the system didn't recognise.
+  // "use it" threads the term into extra_equipment; "skip" just re-runs.
+  function resolveEquip(name: string, use: boolean) {
+    const nextExtra = use ? [...extraEquip, name] : extraEquip;
+    setExtraEquip(nextExtra);
+    run(avoidJoints, ignoreJoints, excludeEquip, nextExtra);
+  }
+
+  // coach toggles one of the member's own equipment chips off/on for this
+  // session → adds/removes it from exclude_equipment and re-generates.
+  function toggleEquip(name: string) {
+    const on = !excludeEquip.includes(name);
+    const next = on ? [...excludeEquip, name] : excludeEquip.filter((e) => e !== name);
+    setExcludeEquip(next);
+    run(avoidJoints, ignoreJoints, next, extraEquip);
+  }
+
   return (
     <div className="panel">
       <h2>Workout Generator</h2>
@@ -69,7 +94,54 @@ export function Generator({ memberId, memberName, injuries }: any) {
         </button>
       </div>
 
-      {clarify && (
+      {equipment?.length > 0 && (
+        <div className="equip-chips">
+          <span className="equip-label">Equipment on hand</span>
+          <div className="equip-row">
+            {equipment.map((e: string) => {
+              const off = excludeEquip.includes(e);
+              return (
+                <button
+                  key={e}
+                  className={"chip equip-chip" + (off ? " off" : "")}
+                  disabled={loading || !memberId}
+                  onClick={() => toggleEquip(e)}
+                  title={off ? "Click to use this session" : "Click to skip this session"}
+                >
+                  {e}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {clarify && clarify.kind === "equipment" && (
+        <div className="clarify">
+          <div className="clarify-tag">Before I build this — one check</div>
+          {clarify.questions.map((q: string, i: number) => (
+            <div key={i} className="clarify-q">
+              <span>{q}</span>
+              {clarify.equipment[i] && (
+                <div className="clarify-actions">
+                  <button className="chip" onClick={() => resolveEquip(clarify.equipment[i], true)}>
+                    Yes, {clarify.equipment[i]} has it — use it
+                  </button>
+                  <button className="chip ghost" onClick={() => resolveEquip(clarify.equipment[i], false)}>
+                    No, skip it
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="muted">
+            That's gear the graph doesn't recognise — so it asks instead of guessing.
+            Confirm it and I'll allow exercises that need it.
+          </div>
+        </div>
+      )}
+
+      {clarify && clarify.kind !== "equipment" && (
         <div className="clarify">
           <div className="clarify-tag">
             {clarify.scope ? "What should this session focus on?" : "Before I build this — one check"}

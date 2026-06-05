@@ -104,7 +104,8 @@ export default function App() {
                 <div className="section-label">Working with</div>
                 <h2 className="member-headline">{sel.name}</h2>
                 <Generator key={sel.id} memberId={sel.id} memberName={sel.name}
-                  injuries={(sel.injuries || []).filter(Boolean)} />
+                  injuries={(sel.injuries || []).filter(Boolean)}
+                  equipment={(sel.equipment || []).filter(Boolean)} />
               </section>
               <section className="surface">
                 <Copilot key={sel.id} memberId={sel.id} />

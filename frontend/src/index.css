@@ -167,6 +167,13 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .chip.ghost { color: var(--sub); }
 .constraint-note { margin-top: 12px; color: var(--blue); }
 
+/* member equipment toggles (click off to skip for this session) */
+.equip-chips { margin-top: 14px; display: grid; gap: 7px; }
+.equip-label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sub); }
+.equip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.equip-chip { text-transform: none; letter-spacing: 0; }
+.equip-chip.off { color: var(--sub); border-style: dashed; text-decoration: line-through; opacity: 0.6; }
+
 /* panel header with inline action */
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 
