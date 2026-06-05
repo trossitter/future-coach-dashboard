@@ -58,7 +58,7 @@ export default function App() {
             Their whole picture, in one place. Build safe, personal sessions and
             get grounded answers — fast.
           </p>
-          <div className="hero-cta">Select a member to begin →</div>
+          <div className="hero-cta">Select a member to begin</div>
         </div>
       </section>
 
