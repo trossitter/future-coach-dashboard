@@ -22,15 +22,17 @@ from ..observability import Trace
 from ..schemas import RouteDecision
 
 COPILOT_SYSTEM = (
-    "You are a fitness coach's copilot. The key facts are ALREADY shown to the coach "
-    "as labeled stats — do NOT repeat them. Add at most ONE short, plain-text sentence: "
-    "an interpretation or a concrete recommendation, grounded only in the provided "
-    "member_data. The `conversation` field (if present) is the prior turns, for "
-    "resolving follow-ups like 'what about her sleep?' — use it ONLY to understand what "
-    "the coach means; every claim must still come from member_data, never from the "
-    "conversation. Plain text ONLY — no markdown, asterisks, bold, headings, bullets, or "
-    "preamble. Never invent or mention missing data. If there's nothing useful to add, "
-    "output nothing."
+    "You are a fitness coach's copilot. The key facts are ALREADY shown to the coach as "
+    "numbered, labeled stats — the `sources` list, [1], [2], … — so do NOT repeat them. "
+    "Add at most ONE short, plain-text sentence: an interpretation or a concrete "
+    "recommendation. EVERY claim must be grounded in the numbered sources, and you MUST "
+    "cite the source number(s) you rely on inline, e.g. 'her vitamin D is the one to move "
+    "on first [3].' Cite only those numbers; never assert anything you cannot cite. The "
+    "`conversation` field (if present) is the prior turns, for resolving follow-ups like "
+    "'what about her sleep?' — use it ONLY to understand what the coach means; every claim "
+    "still comes from the sources. Plain text ONLY — no markdown, asterisks, bold, "
+    "headings, bullets, or preamble. Never invent or mention missing data. If no source "
+    "supports a useful point, output nothing."
 )
 
 # (intent, keywords) — first match wins; order matters. The deterministic
@@ -157,56 +159,62 @@ _ARROW = {"declining": "↓", "improving": "↑", "steady": "→"}
 
 def facts(intent: str, ctx: dict) -> list[dict]:
     """The deterministic diagnostic — the key numbers a coach wants FIRST, straight
-    from the graph (the LLM never produces these). Order matters: most important first."""
+    from the graph (the LLM never produces these). Each fact carries its KG `source`
+    so the LLM's interpretation can cite it [n] and the coach can trace it back to
+    the data. Order matters: most important first."""
     p = ctx.get("profile") or {}
     out: list[dict] = []
 
-    def add(label, value):
+    def add(label, value, source):
         if value not in (None, "", [], {}):
-            out.append({"label": label, "value": value})
+            out.append({"label": label, "value": value, "source": source})
 
     # session prescription signals — first, for "what length / how often" questions
     if intent in ("general", "brief"):
         if p.get("preferred_session_minutes"):
-            add("Preferred session", f"{p['preferred_session_minutes']} min")
-        add("Days / week", p.get("training_days_per_week"))
+            add("Preferred session", f"{p['preferred_session_minutes']} min", "Profile · preferences")
+        add("Days / week", p.get("training_days_per_week"), "Profile · preferences")
 
     if intent == "adherence":
         w = ctx.get("weekly_completion_pct") or []
         if w:
-            add("Latest adherence", f"{w[-1]['pct']}% {_ARROW.get(ctx.get('trend'), '')}".strip())
-            add("Last 4 weeks", " · ".join(f"{x['pct']}%" for x in w[-4:]))
+            add("Latest adherence", f"{w[-1]['pct']}% {_ARROW.get(ctx.get('trend'), '')}".strip(),
+                "Adherence · weekly series")
+            add("Last 4 weeks", " · ".join(f"{x['pct']}%" for x in w[-4:]),
+                "Adherence · weekly series")
     elif intent in ("general", "churn", "what_changed", "brief"):
         a = ctx.get("adherence") or {}
         if a.get("latest_pct") is not None:
-            add("Adherence", f"{a['latest_pct']}% {_ARROW.get(a.get('trend'), '')}".strip())
+            add("Adherence", f"{a['latest_pct']}% {_ARROW.get(a.get('trend'), '')}".strip(),
+                "Adherence · weekly series")
 
     if intent == "sleep":
         s = ctx.get("sleep_hours_last_7_days")
         if s:
-            add("Avg sleep", f"{s['avg_h']} h")
-        add("Goal", ctx.get("sleep_goal"))
+            add("Avg sleep", f"{s['avg_h']} h", "Oura · sleep, last 7 nights")
+        add("Goal", ctx.get("sleep_goal"), "Goal")
         o = ctx.get("oura")
         if o:
-            add("Oura sleep score", o.get("avg_sleep_score"))
+            add("Oura sleep score", o.get("avg_sleep_score"), "Oura readings")
 
     if intent == "labs":
         flags = ctx.get("flags") or []
         # notable (out-of-range) findings lead; then a couple of normal anchors
         ordered = [f for f in flags if f.get("notable")] + [f for f in flags if not f.get("notable")]
         for f in ordered[:5]:
-            add(f["marker"], f"{f['value']} {f['unit']} · {f['status']}")
+            src = f.get("source") or "Lab panel · clinical reference bands"
+            add(f["marker"], f"{f['value']} {f['unit']} · {f['status']}", src)
 
     if intent == "churn":
-        add("Churn risk", (ctx.get("churn") or {}).get("level"))
+        add("Churn risk", (ctx.get("churn") or {}).get("level"), "Coach brief")
     if intent == "brief":
         b = ctx.get("brief") or {}
-        add("Churn risk", b.get("churn_level"))
+        add("Churn risk", b.get("churn_level"), "Coach brief")
 
     if intent in ("general", "brief", "churn", "what_changed"):
         inj = p.get("injuries") or []
         if inj:
-            add("Injuries", ", ".join(inj))
+            add("Injuries", ", ".join(inj), "Injuries · KG2→KG1")
 
     return out
 
@@ -539,8 +547,16 @@ def answer_stream(question: str, result: dict, history: list[dict] | None = None
             yield _fallback_answer(intent, ctx, name)
         return
     payload = {"question": question, "member_data": ctx}
+    # The numbered, source-tagged facts the LLM must cite. They ARE the citations:
+    # if a claim isn't backed by one of these graph-derived facts, it can't be made.
+    src = result.get("facts") or []
+    if src:
+        payload["sources"] = [
+            {"n": i + 1, "fact": f"{s['label']}: {s['value']}", "from": s.get("source", "")}
+            for i, s in enumerate(src)
+        ]
     if history:
         # last few turns only, each trimmed — context for follow-ups, not a token sink
         payload["conversation"] = [{"role": h.get("role"), "text": (h.get("text") or "")[:280]}
                                    for h in history[-6:]]
-    yield from llm.stream(COPILOT_SYSTEM, json.dumps(payload, default=str), max_tokens=120)
+    yield from llm.stream(COPILOT_SYSTEM, json.dumps(payload, default=str), max_tokens=140)

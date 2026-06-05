@@ -208,6 +208,14 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .fact { display: flex; flex-direction: column; gap: 1px; }
 .f-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
 .f-value { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.f-n { color: var(--blue); font-weight: 600; margin-right: 5px; }
+.f-src { font-size: 10px; color: var(--sub); margin-top: 2px; }
+.fact.hot { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+/* inline citation marker in the copilot sentence — clicks highlight its fact */
+.cite { background: none; border: none; color: var(--blue); cursor: pointer; font-weight: 600;
+  font-size: 0.8em; vertical-align: super; padding: 0 1px; line-height: 1;
+  text-transform: none; letter-spacing: 0; }
+.cite:hover { text-decoration: underline; opacity: 1; }
 
 /* graph evidence */
 .graph-evidence { margin-top: 16px; border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; background: #eceef1; }

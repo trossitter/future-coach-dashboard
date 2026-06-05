@@ -21,12 +21,30 @@ const CHARTS = [
 const sanitize = (t: string) =>
   t.replace(/\*+/g, "").replace(/_{2,}/g, "").replace(/^#+\s*/gm, "").trim();
 
+// render the copilot sentence with clickable [n] citations that point back to the
+// numbered facts above — every LLM claim traces to a graph-derived source.
+function withCitations(text: string, onCite: (n: number) => void) {
+  return sanitize(text).split(/(\[\d+\])/g).map((part, j) => {
+    const hit = part.match(/^\[(\d+)\]$/);
+    if (hit) {
+      const n = Number(hit[1]);
+      return (
+        <button key={j} className="cite" title="show the source" onClick={() => onCite(n)}>
+          [{n}]
+        </button>
+      );
+    }
+    return <span key={j}>{part}</span>;
+  });
+}
+
 export function Copilot({ memberId }: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [chart, setChart] = useState<any>(null);
   const [log, setLog] = useState<any[] | null>(null);   // real past chat thread
+  const [cite, setCite] = useState<{ m: number; n: number } | null>(null);  // highlighted source
 
   async function ask(q: string) {
     if (!q.trim() || !memberId) return;
@@ -106,15 +124,18 @@ export function Copilot({ memberId }: any) {
             {m.role === "copilot" && m.facts?.length > 0 && (
               <div className="facts">
                 {m.facts.map((f: any, k: number) => (
-                  <div className="fact" key={k}>
-                    <span className="f-label">{f.label}</span>
+                  <div className={"fact" + (cite?.m === i && cite?.n === k + 1 ? " hot" : "")} key={k}>
+                    <span className="f-label"><span className="f-n">[{k + 1}]</span>{f.label}</span>
                     <span className="f-value">{f.value}</span>
+                    {f.source && <span className="f-src">{f.source}</span>}
                   </div>
                 ))}
               </div>
             )}
             {(m.role === "coach" ? m.text : sanitize(m.text)) && (
-              <span className="msg-text">{m.role === "coach" ? m.text : sanitize(m.text)}</span>
+              <span className="msg-text">
+                {m.role === "coach" ? m.text : withCitations(m.text, (n) => setCite({ m: i, n }))}
+              </span>
             )}
             {busy && i === messages.length - 1 && !m.text && !m.facts?.length && (
               <span className="msg-text">…</span>
