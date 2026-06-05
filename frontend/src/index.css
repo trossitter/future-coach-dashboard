@@ -156,7 +156,7 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .ex-name { font-size: 15px; }
 .ex-rx { font-size: 12px; color: var(--sub); margin-top: 2px; }
 .evidence-row { display: flex; gap: 22px; margin-top: 22px; flex-wrap: wrap; }
-.detail { margin-top: 14px; display: grid; gap: 12px; }
+.detail { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 26px; }
 .prov { font-size: 13px; line-height: 1.5; padding-left: 12px; border-left: 2px solid var(--hair); }
 .muted { color: var(--sub); font-size: 12px; }
 .unsafe { color: var(--clay); }

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 // @ts-ignore - react-force-graph-2d ships no types
 import ForceGraph2D from "react-force-graph-2d";
 
@@ -12,6 +12,21 @@ const color = (g: string) =>
 /** Shows WHY the plan is safe: member → injury → contraindicated (red) vs the
  *  chosen safe exercises (green). The evidence behind the safety filter. */
 export function GraphEvidence({ memberName, injuries, plan, filtered }: any) {
+  // Fill the panel width responsively (was a fixed 430 that left a grey gap),
+  // and refit after the simulation settles so nodes never drift off the canvas.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const fgRef = useRef<any>(null);
+  const [width, setWidth] = useState(600);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const data = useMemo(() => {
     const nodes: any[] = [{ id: "member", label: memberName || "Member", group: "member" }];
     const links: any[] = [];
@@ -35,12 +50,14 @@ export function GraphEvidence({ memberName, injuries, plan, filtered }: any) {
   }, [memberName, injuries, plan, filtered]);
 
   return (
-    <div className="graph-evidence">
+    <div className="graph-evidence" ref={wrapRef}>
       <FG
+        ref={fgRef}
         graphData={data}
-        width={430}
-        height={300}
+        width={width}
+        height={320}
         cooldownTicks={80}
+        onEngineStop={() => fgRef.current?.zoomToFit(400, 36)}
         backgroundColor="#eceef1"
         nodeRelSize={5}
         linkColor={(l: any) => (l.kind === "contra" ? "#b8634a" : "#d8d3c8")}
