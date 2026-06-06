@@ -4,7 +4,7 @@ export function ProtocolsTeaser({ onClose }: { onClose: () => void }) {
       <button className="protocols-close" onClick={onClose} aria-label="Back to dashboard">×</button>
 
       <div className="protocols-teaser-figure" aria-hidden="true">
-        <img src="/protocols-teaser.png" alt="" />
+        <img src="/protocols-teaser.png?v=2" alt="" />
         <div className="protocols-teaser-scrim" />
       </div>
 
