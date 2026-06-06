@@ -28,11 +28,12 @@ function Section({
   onDelete?: (section: SectionKey, id: string) => void;
   onReorder?: (section: SectionKey, fromId: string, toId: string) => void;
   onAdd?: (section: SectionKey, poolItem: any) => void;
-  onNote?: (section: SectionKey, id: string, text: string) => void;
+  onNote?: (section: SectionKey, id: string, text: string | null) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
   if (!items?.length && !editable) return null;
   return (
     <div className="wsection">
@@ -72,12 +73,44 @@ function Section({
               >×</button>
             )}
           </div>
-          {editable && (
-            typeof p.note === "string"
-              ? <input className="ex-note" placeholder="Cue for the member — e.g. “pull the floor apart”"
-                  value={p.note} onChange={(e) => onNote?.(section, p.id, e.target.value)} />
-              : <button className="link ex-note-add" onClick={() => onNote?.(section, p.id, "")}>+ note</button>
-          )}
+          {editable && (() => {
+            const hasNote = typeof p.note === "string" && p.note.trim() !== "";
+            if (editingNote === p.id) {
+              return (
+                <input
+                  className="ex-note"
+                  autoFocus
+                  placeholder="Cue for the member — e.g. “pull the floor apart” (Enter to save)"
+                  value={p.note ?? ""}
+                  onChange={(e) => onNote?.(section, p.id, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+                    if (e.key === "Escape") { onNote?.(section, p.id, null); setEditingNote(null); }
+                  }}
+                  onBlur={(e) => {
+                    // commit on blur; an empty cue clears the note rather than
+                    // leaving a dangling, unfinished-looking field.
+                    if (e.currentTarget.value.trim() === "") onNote?.(section, p.id, null);
+                    setEditingNote(null);
+                  }}
+                />
+              );
+            }
+            if (hasNote) {
+              return (
+                <button className="link ex-note-display" title="Edit cue"
+                  onClick={() => setEditingNote(p.id)}>
+                  📝 {p.note}
+                </button>
+              );
+            }
+            return (
+              <button className="link ex-note-add"
+                onClick={() => { onNote?.(section, p.id, ""); setEditingNote(p.id); }}>
+                + note
+              </button>
+            );
+          })()}
           {onSave && (saved?.includes(p.id)
             ? <span className="lib-save saved">✓ in library</span>
             : <button className="link lib-save" onClick={() => onSave(p)}>+ library</button>)}
@@ -255,9 +288,13 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
   // a per-exercise coaching cue, added while customizing the generated plan — a
   // cue is a per-session thing ("rep this out, buddy"), not a library property.
   // It rides along to the member with the plan.
-  function setNote(section: SectionKey, id: string, text: string) {
+  function setNote(section: SectionKey, id: string, text: string | null) {
     const next = cloneDisplayed();
-    next[section] = next[section].map((p: any) => (p.id === id ? { ...p, note: text } : p));
+    next[section] = next[section].map((p: any) => {
+      if (p.id !== id) return p;
+      if (text === null) { const { note, ...rest } = p; return rest; }  // clear
+      return { ...p, note: text };
+    });
     setEditedPlan(next);
   }
 
