@@ -92,9 +92,11 @@ Docker Engine all work. No local Python/Node/Neo4j needed; everything runs in
 containers.
 
 ```bash
-docker compose up --build        # neo4j + backend + frontend
-curl -X POST localhost:8000/ingest    # load the graph (once)
+docker compose up --build        # neo4j + backend + frontend; the graph self-seeds on first boot
 ```
+
+The backend seeds the graph automatically on first boot (idempotent — skipped once
+populated). To re-seed manually after editing `data/*.json`, `curl -X POST localhost:8000/ingest`.
 
 - **Dashboard:** http://localhost:5173
 - **API / OpenAPI docs:** http://localhost:8000/docs

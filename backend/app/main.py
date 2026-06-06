@@ -23,13 +23,23 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def _warm_embedding_model() -> None:
-    """Load the ONNX embedding model at boot so the first request isn't cold."""
+def _bootstrap() -> None:
+    """Warm the embedding model and seed the graph on first boot, so a single
+    `docker compose up` is genuinely all it takes — no manual /ingest call.
+
+    Ingest is idempotent (MERGE) and skipped when the graph is already populated,
+    so `--reload` restarts stay fast; a connection blip never crashes boot."""
     try:
         from .embeddings import embed
         embed(["warmup"])
     except Exception:
         pass
+    try:
+        rows = run("MATCH (e:Exercise) RETURN count(e) AS n")
+        if not rows or rows[0]["n"] == 0:
+            ingest_all()
+    except Exception:
+        pass  # neo4j not ready yet / transient — first request can still /ingest
 
 
 @app.get("/health")
