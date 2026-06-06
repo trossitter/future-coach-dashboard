@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { postSSE, getJSON } from "../api";
 import { ChartView } from "./Charts";
+
+// the live copilot thread is persisted per member so it survives closing the
+// widget AND a page reload. Scoped by member id (matching the `key={sel.id}`
+// remount) so threads never bleed across members. The coach clears it explicitly.
+const threadKey = (id: string) => `copilot:thread:${id}`;
+const loadThread = (id: string): any[] => {
+  try { return JSON.parse(localStorage.getItem(threadKey(id)) || "[]"); }
+  catch { return []; }
+};
 
 const QUICK = [
   "Show me the brief",
@@ -39,12 +48,29 @@ function withCitations(text: string, onCite: (n: number) => void) {
 }
 
 export function Copilot({ memberId, compact }: any) {
-  const [messages, setMessages] = useState<any[]>([]);
+  // lazy-init from localStorage so a reopened/reloaded widget restores the thread
+  const [messages, setMessages] = useState<any[]>(() => loadThread(memberId));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [chart, setChart] = useState<any>(null);
   const [log, setLog] = useState<any[] | null>(null);   // real past chat thread
   const [cite, setCite] = useState<{ m: number; n: number } | null>(null);  // highlighted source
+
+  // persist the live thread on every change (per member). Empty thread → clear
+  // the key so a fresh member doesn't inherit a stale "[]".
+  useEffect(() => {
+    try {
+      if (messages.length) localStorage.setItem(threadKey(memberId), JSON.stringify(messages));
+      else localStorage.removeItem(threadKey(memberId));
+    } catch { /* storage full / disabled — degrade to in-memory only */ }
+  }, [messages, memberId]);
+
+  // explicit reset — the coach wants a fresh thread for this member
+  function clearThread() {
+    setMessages([]);
+    setCite(null);
+    try { localStorage.removeItem(threadKey(memberId)); } catch { /* ignore */ }
+  }
 
   async function ask(q: string) {
     if (!q.trim() || !memberId) return;
@@ -89,6 +115,11 @@ export function Copilot({ memberId, compact }: any) {
         <button className="link" onClick={toggleLog}>
           {log ? "Hide chat history" : "Chat history"}
         </button>
+        {messages.length > 0 && (
+          <button className="link" onClick={clearThread} title="Start a fresh thread">
+            Clear
+          </button>
+        )}
       </div>
 
       {log && (
