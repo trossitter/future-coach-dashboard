@@ -155,38 +155,24 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .lib-head { display: flex; justify-content: space-between; align-items: baseline; }
 .lib-panel.wide { width: min(720px, 100%); }
 .lib-browse { display: flex; gap: 22px; align-items: flex-start; margin: 18px 0 20px; }
-.bodymap { width: 118px; flex-shrink: 0; }
-.body-avatar {
-  opacity: 0.92;
-  filter: saturate(0) contrast(1.08) brightness(0.94) drop-shadow(0 8px 14px rgba(20, 22, 26, 0.14));
+.bodymap-preview {
+  width: 116px; flex-shrink: 0; padding: 0; border-radius: 14px;
+  background: linear-gradient(160deg, #f4f5f7, #e7e9ec);
+  border: 1px solid var(--hair); overflow: hidden; color: var(--blue);
+  text-transform: none; letter-spacing: 0; display: grid;
+  box-shadow: 0 16px 36px -30px rgba(20, 22, 26, 0.45);
 }
-.body-shell > ellipse,
-.body-shell > path:not(.body-detail) {
-  fill: rgba(22, 22, 26, 0.18);
-  stroke: rgba(22, 22, 26, 0.2);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-.body-detail {
-  fill: none;
-  stroke: rgba(22, 22, 26, 0.28);
-  stroke-width: 0.9;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-.body-region path {
-  fill: transparent;
-  stroke: transparent;
-  stroke-width: 1.35;
-  vector-effect: non-scaling-stroke;
-  cursor: pointer;
-  transition: fill .14s ease, stroke .14s ease, filter .14s ease;
-}
-.body-region.hot path {
-  fill: rgba(124, 47, 61, 0.34);
-  stroke: rgba(124, 47, 61, 0.76);
-  filter: drop-shadow(0 0 5px rgba(124, 47, 61, 0.18));
-}
+.bodymap-preview img { width: 100%; display: block; mix-blend-mode: multiply; }
+.bodymap-preview span { font-size: 11px; padding: 8px 10px 10px; }
+/* clickable body filter map */
+.bodymap { width: 142px; flex-shrink: 0; }
+.bodymap-svg { width: 100%; height: auto; display: block; }
+.bodymap-zone { fill: transparent; stroke: transparent; cursor: pointer;
+  transition: fill .12s ease, stroke .12s ease; }
+.bodymap-zone:hover, .bodymap-zone.on {
+  fill: rgba(124, 47, 61, 0.24); stroke: rgba(124, 47, 61, 0.8); stroke-width: 1.2; }
+.bodymap-hint { display: block; text-align: center; font-size: 11px; color: var(--sub); margin-top: 4px; }
+.lib-pick { padding: 26px 8px; text-align: center; grid-column: 1 / -1; }
 .lib-right { flex: 1; min-width: 0; }
 .region-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
 .chip.on { background: var(--blue); color: #fff; border-color: var(--blue); opacity: 1; }
@@ -194,19 +180,8 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .lib-card { border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; background: #fff; }
 .lib-card:hover { border-color: var(--blue); }
 .lib-thumb { aspect-ratio: 4 / 5; display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(160deg, #f4f5f7, #e7e9ec); padding: 6px; }
-.bthumb { height: 100%; width: auto; display: block; }
-.bthumb .body-avatar {
-  opacity: 0.5;
-  filter: saturate(0) contrast(1.08) brightness(0.95);
-}
-.bthumb-hl path {
-  fill: var(--blue);
-  opacity: 0.5;
-  stroke: rgba(124, 47, 61, 0.64);
-  stroke-width: 0.8;
-  vector-effect: non-scaling-stroke;
-}  /* light up the worked area */
+  background: linear-gradient(160deg, #f4f5f7, #e7e9ec); padding: 0; overflow: hidden; }
+.bthumb { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; mix-blend-mode: multiply; }
 .lib-card-body { padding: 9px 11px; }
 .lib-ex-name { font-weight: 600; font-size: 13.5px; line-height: 1.25;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -349,6 +324,99 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .sheet-inner { max-width: 1320px; margin: 0 auto; padding: clamp(36px, 6vh, 72px) clamp(20px, 6vw, 96px) 80px; }
 .sheet-inner > .surface:first-child { margin-top: 0; }
 
+/* protocols teaser — bottom hint using the same floating-image treatment as the hero */
+.protocols-teaser {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: hidden;
+  scroll-margin-top: 48px;
+  max-width: 1320px;
+  min-height: 440px;
+  margin: 0 auto;
+  padding: 88px clamp(20px, 6vw, 96px) 96px;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+}
+.protocols-teaser-figure {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.protocols-teaser-figure img {
+  position: absolute;
+  right: -28px;
+  bottom: -76px;
+  width: min(40vw, 500px);
+  height: 620px;
+  object-fit: cover;
+  object-position: 52% 50%;
+  opacity: 0.96;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 45%);
+}
+.protocols-teaser-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right,
+      var(--bg) 0%,
+      rgba(237, 238, 241, 0.74) 36%,
+      rgba(237, 238, 241, 0.22) 62%,
+      transparent 84%),
+    linear-gradient(to bottom,
+      var(--bg) 0%,
+      rgba(237, 238, 241, 0.72) 10%,
+      transparent 24%,
+      transparent 76%,
+      var(--bg) 100%);
+}
+.protocols-teaser-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 480px;
+}
+.protocols-teaser .eyebrow { margin-bottom: 18px; }
+.protocols-teaser h2 {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 64px;
+  line-height: 0.96;
+  letter-spacing: 0;
+  margin: 0;
+}
+.protocols-teaser p {
+  max-width: 34ch;
+  margin: 24px 0 0;
+  color: var(--sub);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* the teaser is now a deliberate full-screen view, not a scroll-into section.
+   These override the section layout above (same element carries both classes). */
+.protocols-page {
+  position: fixed; inset: 0; z-index: 70;
+  max-width: none; min-height: 100vh; margin: 0;
+  padding: clamp(48px, 12vh, 130px) clamp(20px, 8vw, 120px);
+}
+.protocols-close {
+  position: absolute; top: 22px; right: 22px; z-index: 3;
+  background: none; color: var(--ink); border: none; font-size: 26px; line-height: 1;
+  padding: 6px 10px; cursor: pointer; letter-spacing: 0;
+}
+.protocols-close:hover:not(:disabled) { color: var(--blue); opacity: 1; }
+/* the bottom hint that opens it — a quiet, deliberate link (not a scroll target) */
+.protocols-hint {
+  display: block; margin: 40px auto 8px; background: none; border: none;
+  color: var(--blue); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  cursor: pointer; padding: 6px;
+}
+.protocols-hint:hover:not(:disabled) { opacity: 0.7; }
+
 /* coach overview — member roster (the landing) */
 .section-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub); margin-bottom: 18px; }
 .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 16px; }
@@ -429,4 +497,34 @@ button:hover:not(:disabled) { opacity: 0.86; }
   .hero { grid-template-columns: 1fr; min-height: auto; }
   .figure { position: relative; right: 0; bottom: 0; width: 100%; height: 320px; margin-top: 24px; }
   .display { font-size: clamp(40px, 14vw, 80px); }
+  .protocols-teaser {
+    min-height: 560px;
+    padding-top: 72px;
+    padding-bottom: 72px;
+    align-items: flex-start;
+  }
+  .protocols-teaser h2 { font-size: 46px; }
+  .protocols-teaser-copy { max-width: 360px; }
+  .protocols-teaser-figure img {
+    right: -36px;
+    bottom: -36px;
+    width: 78%;
+    height: 470px;
+    object-position: 55% 52%;
+    opacity: 0.74;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 30%);
+  }
+  .protocols-teaser-scrim {
+    background:
+      linear-gradient(to bottom,
+        var(--bg) 0%,
+        rgba(237, 238, 241, 0.9) 36%,
+        rgba(237, 238, 241, 0.22) 74%,
+        var(--bg) 100%),
+      linear-gradient(to right,
+        var(--bg) 0%,
+        rgba(237, 238, 241, 0.62) 54%,
+        transparent 100%);
+  }
 }
