@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getJSON } from "./api";
 import { Generator } from "./components/Generator";
 import { Copilot } from "./components/Copilot";
+import { CoachLibrary } from "./components/CoachLibrary";
 import "./index.css";
 
 const today = new Date().toLocaleDateString(undefined, {
@@ -25,6 +26,8 @@ export default function App() {
   const [roster, setRoster] = useState<any[]>([]);
   const [sel, setSel] = useState<any | null>(null);
   const [imgOk, setImgOk] = useState(true);
+  const [showLib, setShowLib] = useState(false);   // coach library (local experiment)
+  const [chatOpen, setChatOpen] = useState(false); // floating copilot widget
 
   useEffect(() => { getJSON("/roster").then((d) => setRoster(d.members || [])); }, []);
 
@@ -46,8 +49,13 @@ export default function App() {
 
       <header className="topbar">
         <span className="wordmark">FUTURE</span>
-        <nav className="nav"><span className="nav-label">Coach dashboard · Sam</span></nav>
+        <nav className="nav">
+          <button className="nav-label nav-link" onClick={() => setShowLib(true)}>
+            Coach dashboard · Sam ▾
+          </button>
+        </nav>
       </header>
+      {showLib && <CoachLibrary onClose={() => setShowLib(false)} />}
 
       <section className="hero">
         <div className="hero-copy">
@@ -108,9 +116,6 @@ export default function App() {
                   injuries={(sel.injuries || []).filter(Boolean)}
                   equipment={(sel.equipment || []).filter(Boolean)} />
               </section>
-              <section className="surface">
-                <Copilot key={sel.id} memberId={sel.id} />
-              </section>
             </>
           )}
 
@@ -119,6 +124,38 @@ export default function App() {
           </footer>
         </div>
       </div>
+
+      {/* floating AI copilot — a chat widget scoped to the selected member */}
+      {chatOpen && (
+        <div className="copilot-window" role="dialog" aria-label="AI Copilot">
+          <div className="copilot-window-head">
+            <span className="copilot-title">
+              Copilot{sel ? ` · ${sel.name}` : ""}
+            </span>
+            <button
+              className="copilot-x"
+              aria-label="Close copilot"
+              onClick={() => setChatOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+          {sel ? (
+            <Copilot key={sel.id} memberId={sel.id} compact />
+          ) : (
+            <div className="copilot-empty">Select a member first.</div>
+          )}
+        </div>
+      )}
+
+      <button
+        className={"copilot-launcher" + (chatOpen ? " open" : "")}
+        aria-label={chatOpen ? "Close copilot" : "Open copilot"}
+        aria-expanded={chatOpen}
+        onClick={() => setChatOpen((v) => !v)}
+      >
+        {chatOpen ? "×" : "💬"}
+      </button>
     </>
   );
 }
