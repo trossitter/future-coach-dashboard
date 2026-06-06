@@ -38,7 +38,7 @@ function withCitations(text: string, onCite: (n: number) => void) {
   });
 }
 
-export function Copilot({ memberId }: any) {
+export function Copilot({ memberId, compact }: any) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,9 +83,9 @@ export function Copilot({ memberId }: any) {
   }
 
   return (
-    <div className="panel">
+    <div className={compact ? "copilot-body" : "panel"}>
       <div className="panel-head">
-        <h2>AI Copilot</h2>
+        {!compact && <h2>AI Copilot</h2>}
         <button className="link" onClick={toggleLog}>
           {log ? "Hide chat history" : "Chat history"}
         </button>
