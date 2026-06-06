@@ -25,3 +25,6 @@ neo4j-data/
 # Model caches (sentence-transformers / HF)
 .cache/
 models/
+
+# Internal build handoffs — kept local, never part of the submitted build
+docs/HANDOFF-*.md
