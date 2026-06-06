@@ -3,6 +3,7 @@ import { getJSON } from "./api";
 import { Generator } from "./components/Generator";
 import { Copilot } from "./components/Copilot";
 import { CoachLibrary } from "./components/CoachLibrary";
+import { ProtocolsTeaser } from "./components/ProtocolsTeaser";
 import "./index.css";
 
 const today = new Date().toLocaleDateString(undefined, {
@@ -28,6 +29,7 @@ export default function App() {
   const [imgOk, setImgOk] = useState(true);
   const [showLib, setShowLib] = useState(false);   // coach library (local experiment)
   const [chatOpen, setChatOpen] = useState(false); // floating copilot widget
+  const [showProtocols, setShowProtocols] = useState(false); // protocols "coming soon" view
 
   useEffect(() => { getJSON("/roster").then((d) => setRoster(d.members || [])); }, []);
 
@@ -122,8 +124,13 @@ export default function App() {
           <footer className="foot">
             Synthetic data only · knowledge-graph-backed · {roster.length} members
           </footer>
+          <button className="protocols-hint" onClick={() => setShowProtocols(true)}>
+            Coming soon …
+          </button>
         </div>
       </div>
+
+      {showProtocols && <ProtocolsTeaser onClose={() => setShowProtocols(false)} />}
 
       {/* floating AI copilot — a chat widget scoped to the selected member */}
       {chatOpen && (
