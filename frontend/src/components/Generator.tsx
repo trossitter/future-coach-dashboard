@@ -1,18 +1,121 @@
 import { useState } from "react";
 import { postSSE, postJSON } from "../api";
 import { GraphEvidence } from "./GraphEvidence";
+import { BodyThumb, regionForExercise } from "./BodyThumb";
 
-function Section({ title, items }: { title: string; items: any[] }) {
-  if (!items?.length) return null;
+type SectionKey = "warmup" | "main" | "cooldown";
+
+// defaults applied to a pool item promoted into a prescription — section-aware
+// so an added warmup reads as a warmup, a cooldown as a hold, etc.
+const ADD_DEFAULTS: Record<SectionKey, { sets: number; reps: string; rest_seconds: number }> = {
+  warmup: { sets: 1, reps: "8-10 reps", rest_seconds: 20 },
+  cooldown: { sets: 1, reps: "30-45s hold", rest_seconds: 15 },
+  main: { sets: 3, reps: "8-12 reps", rest_seconds: 90 },
+};
+
+function Section({
+  title, section, items, onSave, saved,
+  editable, pool, onDelete, onReorder, onAdd, onNote,
+}: {
+  title: string;
+  section: SectionKey;
+  items: any[];
+  onSave?: (p: any) => void;
+  saved?: string[];
+  // editing wiring — when present the section renders coach controls
+  editable?: boolean;
+  pool?: any[];            // safe_pool items not already in the plan
+  onDelete?: (section: SectionKey, id: string) => void;
+  onReorder?: (section: SectionKey, fromId: string, toId: string) => void;
+  onAdd?: (section: SectionKey, poolItem: any) => void;
+  onNote?: (section: SectionKey, id: string, text: string) => void;
+}) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  if (!items?.length && !editable) return null;
   return (
     <div className="wsection">
       <div className="wsection-title">{title}</div>
       {items.map((p) => (
-        <div key={p.id} className="prescription">
-          <span className="ex-name">{p.name}</span>
-          <span className="ex-rx">{p.sets} × {p.reps} · rest {p.rest_seconds}s</span>
+        <div
+          key={p.id}
+          className={
+            "prescription" +
+            (editable ? " editable" : "") +
+            (overId === p.id && dragId !== p.id ? " drop-target" : "") +
+            (dragId === p.id ? " dragging" : "")
+          }
+          draggable={editable || undefined}
+          onDragStart={editable ? () => setDragId(p.id) : undefined}
+          onDragOver={editable ? (e) => { e.preventDefault(); setOverId(p.id); } : undefined}
+          onDragLeave={editable ? () => setOverId((o) => (o === p.id ? null : o)) : undefined}
+          onDrop={editable ? (e) => {
+            e.preventDefault();
+            if (dragId && dragId !== p.id) onReorder?.(section, dragId, p.id);
+            setDragId(null); setOverId(null);
+          } : undefined}
+          onDragEnd={editable ? () => { setDragId(null); setOverId(null); } : undefined}
+        >
+          <div className="ex-line">
+            {editable && <span className="drag-handle" aria-hidden title="Drag to reorder">⠿</span>}
+            <div className="ex-body">
+              <span className="ex-name">{p.name}</span>
+              <span className="ex-rx">{p.sets} × {p.reps} · rest {p.rest_seconds}s</span>
+            </div>
+            {editable && (
+              <button
+                className="row-del"
+                aria-label={`Remove ${p.name}`}
+                title="Remove from plan"
+                onClick={() => onDelete?.(section, p.id)}
+              >×</button>
+            )}
+          </div>
+          {editable && (
+            typeof p.note === "string"
+              ? <input className="ex-note" placeholder="Cue for the member — e.g. “pull the floor apart”"
+                  value={p.note} onChange={(e) => onNote?.(section, p.id, e.target.value)} />
+              : <button className="link ex-note-add" onClick={() => onNote?.(section, p.id, "")}>+ note</button>
+          )}
+          {onSave && (saved?.includes(p.id)
+            ? <span className="lib-save saved">✓ in library</span>
+            : <button className="link lib-save" onClick={() => onSave(p)}>+ library</button>)}
         </div>
       ))}
+      {editable && (
+        <div className="add-wrap">
+          {!picking ? (
+            <button className="link add-toggle" onClick={() => setPicking(true)}>+ add exercise</button>
+          ) : (
+            <div className="add-picker">
+              <div className="add-picker-head">
+                <span className="muted">Safe pool only</span>
+                <button className="row-del" aria-label="Close picker" onClick={() => setPicking(false)}>×</button>
+              </div>
+              {pool && pool.length > 0 ? (
+                <div className="add-list">
+                  {pool.map((it) => (
+                    <button
+                      key={it.id}
+                      className="add-item"
+                      onClick={() => { onAdd?.(section, it); setPicking(false); }}
+                    >
+                      <span className="add-thumb"><BodyThumb region={regionForExercise(it)} /></span>
+                      <span className="add-item-body">
+                        <span className="ex-name">{it.name}</span>
+                        {it.pattern && <span className="ex-rx">{it.pattern}</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="muted add-empty">Every safe exercise is already in the plan.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -34,6 +137,11 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
   const [excludeEquip, setExcludeEquip] = useState<string[]>([]);
   const [extraEquip, setExtraEquip] = useState<string[]>([]);
   const [sent, setSent] = useState(false);   // plan delivered to the member's app
+  const [savedIds, setSavedIds] = useState<string[]>([]);   // saved to coach library
+  // local, transient coach edits to the generated plan (reorder/delete/add).
+  // null ⇒ no edits yet, so the displayed plan is the freshly generated one.
+  // Reset to null on every new generation so a regenerate discards manual edits.
+  const [editedPlan, setEditedPlan] = useState<any>(null);
   // signature of the inputs that produced the shown plan. Lets us flag "unsaved
   // changes" so edits stage quietly instead of auto-regenerating on every
   // keystroke / time tick / equipment toggle.
@@ -58,6 +166,7 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
           if (data.result.clarification) setClarify(data.result.clarification);
           else {
             setResult(data.result);
+            setEditedPlan(null);   // discard any manual edits from the prior plan
             setLastSig(sig(prompt, time, avoid, ignore, exclude, extra));
           }
           setTrace(data.trace);
@@ -91,13 +200,83 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
       cur.includes(name) ? cur.filter((e) => e !== name) : [...cur, name]);
   }
 
+  // the plan the coach actually sees and acts on: their local edits if any,
+  // otherwise the freshly generated plan straight from the backend.
+  const displayedPlan = editedPlan ?? result?.plan;
+
+  // ids already placed anywhere in the displayed plan — used to dedupe the
+  // add-picker so the same exercise can't be added twice.
+  const planIds: Set<string> = new Set(
+    displayedPlan
+      ? (["warmup", "main", "cooldown"] as const)
+          .flatMap((s) => (displayedPlan[s] || []).map((p: any) => p.id))
+      : []
+  );
+
+  // additions are constrained to safe_pool, minus anything already in the plan.
+  // This is the ONLY source the picker draws from, so a coach can never insert
+  // a contraindicated exercise — there is no free-text add path.
+  const addablePool: any[] = (result?.safe_pool || []).filter((it: any) => !planIds.has(it.id));
+
+  // produce a fresh, mutable copy of the current displayed plan to edit into.
+  const cloneDisplayed = () => ({
+    warmup: [...(displayedPlan?.warmup || [])],
+    main: [...(displayedPlan?.main || [])],
+    cooldown: [...(displayedPlan?.cooldown || [])],
+  });
+
+  function deleteExercise(section: SectionKey, id: string) {
+    const next = cloneDisplayed();
+    next[section] = next[section].filter((p: any) => p.id !== id);
+    setEditedPlan(next);
+  }
+
+  function reorderExercise(section: SectionKey, fromId: string, toId: string) {
+    const next = cloneDisplayed();
+    const list = next[section];
+    const from = list.findIndex((p: any) => p.id === fromId);
+    const to = list.findIndex((p: any) => p.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    setEditedPlan(next);
+  }
+
+  function addExercise(section: SectionKey, poolItem: any) {
+    // guard: only ever append something from safe_pool that isn't already placed.
+    if (planIds.has(poolItem.id)) return;
+    if (!(result?.safe_pool || []).some((it: any) => it.id === poolItem.id)) return;
+    const d = ADD_DEFAULTS[section];
+    const next = cloneDisplayed();
+    next[section] = [...next[section], { id: poolItem.id, name: poolItem.name, ...d }];
+    setEditedPlan(next);
+  }
+
+  // a per-exercise coaching cue, added while customizing the generated plan — a
+  // cue is a per-session thing ("rep this out, buddy"), not a library property.
+  // It rides along to the member with the plan.
+  function setNote(section: SectionKey, id: string, text: string) {
+    const next = cloneDisplayed();
+    next[section] = next[section].map((p: any) => (p.id === id ? { ...p, note: text } : p));
+    setEditedPlan(next);
+  }
+
   // on-platform handoff: deliver the plan to the member's app/record rather than
-  // exporting or printing it off-platform.
+  // exporting or printing it off-platform. Sends the DISPLAYED (edited) plan —
+  // including any coach cues — so the member gets exactly what was customized.
   async function deliver() {
-    const ids = (["warmup", "main", "cooldown"] as const)
-      .flatMap((s) => (result.plan[s] || []).map((p: any) => p.id));
-    await postJSON(`/members/${memberId}/deliver`, { exercise_ids: ids, summary: prompt });
+    const all = (["warmup", "main", "cooldown"] as const)
+      .flatMap((s) => displayedPlan[s] || []);
+    const ids = all.map((p: any) => p.id);
+    const notes = all.filter((p: any) => p.note).map((p: any) => ({ name: p.name, note: p.note }));
+    await postJSON(`/members/${memberId}/deliver`, { exercise_ids: ids, notes, summary: prompt });
     setSent(true);
+  }
+
+  // save a prescribed exercise into the coach's own library (local experiment)
+  async function saveToLibrary(p: any) {
+    await postJSON("/coach/library", { name: p.name, reps: `${p.sets} × ${p.reps}` });
+    setSavedIds((s) => [...s, p.id]);
   }
 
   return (
@@ -218,10 +397,24 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
 
       {result && (
         <>
+          <div className="muted edit-hint">Customize this plan — drag to reorder, × to remove, add only from the safe pool.</div>
           <div className="workout">
-            <Section title="Warmup" items={result.plan.warmup} />
-            <Section title="Main" items={result.plan.main} />
-            <Section title="Cooldown" items={result.plan.cooldown} />
+            {(["warmup", "main", "cooldown"] as const).map((s) => (
+              <Section
+                key={s}
+                title={s[0].toUpperCase() + s.slice(1)}
+                section={s}
+                items={displayedPlan[s]}
+                onSave={saveToLibrary}
+                saved={savedIds}
+                editable
+                pool={addablePool}
+                onDelete={deleteExercise}
+                onReorder={reorderExercise}
+                onAdd={addExercise}
+                onNote={setNote}
+              />
+            ))}
           </div>
 
           <div className="deliver-row">
