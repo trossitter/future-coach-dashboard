@@ -71,7 +71,7 @@ export function BodyHeatMap({
           </ellipse>
         ))}
       </svg>
-      <span className="bodymap-hint">{sel || "Tap a muscle, or a pill"}</span>
+      <span className="bodymap-hint">{sel || "Choose a muscle group"}</span>
     </div>
   );
 }

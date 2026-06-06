@@ -167,10 +167,8 @@ button:hover:not(:disabled) { opacity: 0.86; }
 /* clickable body filter map */
 .bodymap { width: 142px; flex-shrink: 0; }
 .bodymap-svg { width: 100%; height: auto; display: block; }
-.bodymap-zone { fill: transparent; stroke: transparent; cursor: pointer;
-  transition: fill .12s ease, stroke .12s ease; }
-.bodymap-zone:hover, .bodymap-zone.on {
-  fill: rgba(124, 47, 61, 0.24); stroke: rgba(124, 47, 61, 0.8); stroke-width: 1.2; }
+/* invisible click targets — feedback is the figure swapping to the muscle, no bubbles */
+.bodymap-zone { fill: transparent; stroke: transparent; cursor: pointer; }
 .bodymap-hint { display: block; text-align: center; font-size: 11px; color: var(--sub); margin-top: 4px; }
 .lib-pick { padding: 26px 8px; text-align: center; grid-column: 1 / -1; }
 .lib-right { flex: 1; min-width: 0; }
@@ -324,84 +322,33 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .sheet-inner { max-width: 1320px; margin: 0 auto; padding: clamp(36px, 6vh, 72px) clamp(20px, 6vw, 96px) 80px; }
 .sheet-inner > .surface:first-child { margin-top: 0; }
 
-/* protocols teaser — bottom hint using the same floating-image treatment as the hero */
-.protocols-teaser {
-  position: relative;
-  z-index: 1;
-  isolation: isolate;
-  overflow: hidden;
-  scroll-margin-top: 48px;
-  max-width: 1320px;
-  min-height: 440px;
-  margin: 0 auto;
-  padding: 88px clamp(20px, 6vw, 96px) 96px;
-  display: flex;
-  align-items: center;
-  background: var(--bg);
-}
-.protocols-teaser-figure {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.protocols-teaser-figure img {
-  position: absolute;
-  right: -28px;
-  bottom: -76px;
-  width: min(40vw, 500px);
-  height: 620px;
-  object-fit: cover;
-  object-position: 52% 50%;
-  opacity: 0.96;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 45%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 45%);
-}
-.protocols-teaser-scrim {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to right,
-      var(--bg) 0%,
-      rgba(237, 238, 241, 0.74) 36%,
-      rgba(237, 238, 241, 0.22) 62%,
-      transparent 84%),
-    linear-gradient(to bottom,
-      var(--bg) 0%,
-      rgba(237, 238, 241, 0.72) 10%,
-      transparent 24%,
-      transparent 76%,
-      var(--bg) 100%);
-}
-.protocols-teaser-copy {
-  position: relative;
-  z-index: 2;
-  max-width: 480px;
-}
-.protocols-teaser .eyebrow { margin-bottom: 18px; }
-.protocols-teaser h2 {
-  font-family: var(--serif);
-  font-weight: 300;
-  font-size: 64px;
-  line-height: 0.96;
-  letter-spacing: 0;
-  margin: 0;
-}
-.protocols-teaser p {
-  max-width: 34ch;
-  margin: 24px 0 0;
-  color: var(--sub);
-  font-size: 15px;
-  line-height: 1.7;
-}
-
-/* the teaser is now a deliberate full-screen view, not a scroll-into section.
-   These override the section layout above (same element carries both classes). */
+/* protocols screen — full image first, then title scrolls in like the hero */
 .protocols-page {
-  position: fixed; inset: 0; z-index: 70;
-  max-width: none; min-height: 100vh; margin: 0;
-  padding: clamp(48px, 12vh, 130px) clamp(20px, 8vw, 120px);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--bg);
+  overflow: hidden;
+}
+.protocols-home {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  z-index: 4;
+  background: rgba(237, 238, 241, 0.72);
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.protocols-home:hover:not(:disabled) {
+  color: var(--blue);
+  opacity: 1;
 }
 .protocols-close {
   position: absolute; top: 22px; right: 22px; z-index: 3;
@@ -409,8 +356,91 @@ button:hover:not(:disabled) { opacity: 0.86; }
   padding: 6px 10px; cursor: pointer; letter-spacing: 0;
 }
 .protocols-close:hover:not(:disabled) { color: var(--blue); opacity: 1; }
+.protocols-scroll {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+}
+.protocols-scene {
+  position: relative;
+  min-height: 222vh;
+}
+.protocols-sticky-figure {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+.protocols-sticky-figure img {
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  height: min(92vh, 980px);
+  width: auto;
+  object-fit: contain;
+  object-position: center;
+  transform: translate(50%, -50%);
+  opacity: var(--protocol-image-opacity);
+  filter:
+    saturate(var(--protocol-image-saturate))
+    contrast(var(--protocol-image-contrast))
+    blur(var(--protocol-image-blur));
+  transition: opacity 0.08s linear, filter 0.08s linear;
+  /* float the photo into the page: dissolve the side walls + top/bottom edges
+     so the beige studio bg meets the grey page instead of a hard rectangle */
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 25%, #000 75%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 25%, #000 75%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 93%, transparent 100%);
+  mask-composite: intersect;
+}
+.protocols-sticky-scrim {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: transparent;
+}
+.protocols-title-stage {
+  position: absolute;
+  inset: 0;
+  padding: clamp(56px, 11vh, 132px) clamp(20px, 8vw, 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.protocols-title-stage h1 {
+  max-width: 980px;
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(86px, 11vw, 168px);
+  line-height: 0.78;
+  letter-spacing: 0;
+  color: rgba(22, 22, 26, 0.88);
+  text-shadow:
+    0 0 18px rgba(237, 238, 241, 0.88),
+    0 1px 0 rgba(237, 238, 241, 0.42);
+}
+.protocols-title-line {
+  display: block;
+  opacity: var(--line-progress);
+  transform: translateY(var(--line-y));
+  filter: blur(var(--line-blur));
+  will-change: opacity, transform, filter;
+}
 /* the bottom hint that opens it — a quiet, deliberate link (not a scroll target) */
 .protocols-hint {
+  position: relative; z-index: 0;
   display: block; margin: 40px auto 8px; background: none; border: none;
   color: var(--blue); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
   cursor: pointer; padding: 6px;
@@ -497,34 +527,11 @@ button:hover:not(:disabled) { opacity: 0.86; }
   .hero { grid-template-columns: 1fr; min-height: auto; }
   .figure { position: relative; right: 0; bottom: 0; width: 100%; height: 320px; margin-top: 24px; }
   .display { font-size: clamp(40px, 14vw, 80px); }
-  .protocols-teaser {
-    min-height: 560px;
-    padding-top: 72px;
-    padding-bottom: 72px;
-    align-items: flex-start;
+  .protocols-title-stage {
+    align-items: center;
   }
-  .protocols-teaser h2 { font-size: 46px; }
-  .protocols-teaser-copy { max-width: 360px; }
-  .protocols-teaser-figure img {
-    right: -36px;
-    bottom: -36px;
-    width: 78%;
-    height: 470px;
-    object-position: 55% 52%;
-    opacity: 0.74;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%);
-    mask-image: linear-gradient(to right, transparent 0%, #000 30%);
-  }
-  .protocols-teaser-scrim {
-    background:
-      linear-gradient(to bottom,
-        var(--bg) 0%,
-        rgba(237, 238, 241, 0.9) 36%,
-        rgba(237, 238, 241, 0.22) 74%,
-        var(--bg) 100%),
-      linear-gradient(to right,
-        var(--bg) 0%,
-        rgba(237, 238, 241, 0.62) 54%,
-        transparent 100%);
+  .protocols-title-stage h1 {
+    max-width: min(96vw, 620px);
+    font-size: clamp(66px, 13vw, 92px);
   }
 }
