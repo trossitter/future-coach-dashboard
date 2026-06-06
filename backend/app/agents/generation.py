@@ -676,5 +676,15 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         "journey_stage": final["journey"].get("journey_stage", "unknown"),
         "narration": final.get("narration", ""),
         "degraded": final.get("degraded", False),
+        # The full graph-safe candidate pool for THIS session — every exercise
+        # that passed injury/equipment/avoidance filtering. The coach may add
+        # only from here, so manual customization can never insert something
+        # contraindicated (safety stays deterministic even under hand-edits).
+        "safe_pool": [
+            {"id": c["id"], "name": c["name"],
+             "pattern": (c.get("patterns") or [""])[0],
+             "muscles": c.get("muscles", [])}
+            for c in final.get("candidates", [])
+        ],
     }
     return result, trace.as_list()
