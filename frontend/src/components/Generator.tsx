@@ -120,7 +120,7 @@ function Section({
   );
 }
 
-export function Generator({ memberId, memberName, injuries, equipment }: any) {
+export function Generator({ memberId, memberName, injuries, equipment, dislikes }: any) {
   const [prompt, setPrompt] = useState("");
   const [time, setTime] = useState(45);
   const [loading, setLoading] = useState(false);
@@ -321,6 +321,23 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
         </div>
       )}
 
+      {dislikes?.length > 0 && (
+        <div className="equip-chips dislike-chips">
+          <span className="equip-label">Dislikes</span>
+          <div className="equip-row">
+            {dislikes.map((d: string) => (
+              <span
+                key={d}
+                className="chip dislike-chip"
+                title={`${memberName || "This member"} dislikes ${d} — always filtered out`}
+              >
+                ♡ {d}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {clarify && clarify.kind === "equipment" && (
         <div className="clarify">
           <div className="clarify-tag">Before I build this — one check</div>
@@ -395,6 +412,12 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
       )}
 
       {narration && <div className="narration">{narration}</div>}
+
+      {result?.intent?.session_exclude_terms?.length > 0 && (
+        <div className="muted constraint-note">
+          Excluding by name: {result.intent.session_exclude_terms.join(", ")} — no matching exercise appears.
+        </div>
+      )}
 
       {result && (
         <>

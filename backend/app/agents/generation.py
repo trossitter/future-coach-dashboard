@@ -146,6 +146,15 @@ _EQUIP_REMOVAL_CUES = (
 _EQUIP_ADDITION_CUES = (
     "has ", "have ", "got ", "with ", "access to", "available", "owns", "brought",
 )
+# "only X" / "just X" name the kit that IS on hand — availability, not exclusion.
+# Used by the polarity classifier only (NOT the open-vocab clarify gate), so
+# "only dumbbells" reads as available without changing what counts as "unknown
+# kit worth asking about".
+_EQUIP_AVAILABILITY_CUES = ("only ", "just ")
+# Clause boundaries. A cue on the far side of one of these does NOT govern an
+# equipment mention: in "no barbell, only dumbbells" the comma ends the "no"
+# clause, so the removal can't bleed onto the dumbbells named after it.
+_CLAUSE_SEPS = (",", ";", " but ", " however ", " though ")
 
 
 # --- agents (graph nodes) ----------------------------------------------------
@@ -167,8 +176,31 @@ def plan(state: GenState) -> dict:
         dis = run("MATCH (m:Member {id:$id}) RETURN coalesce(m.dislikes,[]) AS d",
                   id=member_id)
         dislikes = dis[0]["d"] if dis else []
-        intent["exclude_terms"] = sorted({*intent.get("exclude_terms", []),
-                                          *state.get("exclude_terms", []), *dislikes})
+        # Name-level exclusions parsed from the prompt ("exclude deadlifts"). The
+        # skip-set keeps joint / equipment / muscle / pattern mentions OUT of the
+        # name filter, so each stays on its own resolver (joint→clarify gate,
+        # equipment→polarity, muscle/pattern→intent) and only true exercise-name
+        # terms reach the CONTAINS filter.
+        eq_surface = _equipment_surface()
+        skip = set(surface) | {v.lower() for v in surface.values()} \
+            | set(eq_surface) | {v.lower() for v in eq_surface.values()} \
+            | {p.lower() for p in patterns} \
+            | {w for p in patterns for w in p.lower().replace(" - ", " ").split()}
+        for r in run("MATCH (j:Joint) RETURN j.name AS name, coalesce(j.alt_labels,[]) AS alts"):
+            skip.add(r["name"].lower())
+            skip.update(a.lower() for a in r["alts"])
+        parsed_excl = _resolve_exclude_terms(state["prompt"], skip)
+        # This-session exclusions the coach asked for (prompt-parsed + any passed
+        # via the request) — kept separate from standing dislikes so the UI can
+        # show only what the coach did THIS session, while dislikes stay silently
+        # applied (as they always were). All lowercase: `safety.eligible` already
+        # lowercases for its CONTAINS match, so this changes no filtering.
+        session_excl = sorted({t.lower() for t in (*parsed_excl,
+                                                   *state.get("exclude_terms", []))})
+        intent["session_exclude_terms"] = session_excl
+        intent["exclude_terms"] = sorted({
+            t.lower() for t in (*intent.get("exclude_terms", []),
+                                *session_excl, *dislikes)})
         # Parse equipment polarity from the prompt and fold it into the session
         # overrides (resolved removals/additions), merged with any passed in via
         # the clarify loop.
@@ -192,29 +224,106 @@ def _equipment_surface() -> dict[str, str]:
     return surface
 
 
-def _resolve_equipment(prompt: str) -> tuple[list[str], list[str]]:
-    """Scan the prompt for known Equipment surface forms and classify each by the
-    nearest polarity cue to its LEFT (removal vs. addition). Mirrors how
-    `detect_clarifications` scans Joint surface forms — deterministic, no LLM.
-    Returns (exclude_equipment, extra_equipment) as canonical names."""
+def _classify_equipment(prompt: str, surface: dict[str, str]) -> tuple[list[str], list[str]]:
+    """Pure polarity scan: for each known Equipment surface form in the prompt,
+    classify it as excluded or available by the nearest cue to its LEFT *within
+    its own clause*. Clause-scoping stops a removal in one clause ("no barbell")
+    from bleeding onto kit named in the next ("only dumbbells, a kettlebell").
+    Mirrors how `detect_clarifications` scans surface forms — deterministic, no
+    LLM, no DB (surface is passed in). Returns (exclude, extra) canonical names."""
     pl = f" {prompt.lower()} "
-    surface = _equipment_surface()
     exclude: set[str] = set()
     extra: set[str] = set()
+    add_cues = _EQUIP_ADDITION_CUES + _EQUIP_AVAILABILITY_CUES
     for surf, canon in surface.items():
         idx = pl.find(f" {surf} ")
         if idx < 0:
             idx = pl.find(f" {surf}")
         if idx < 0:
             continue
-        # Look at the run of text preceding the mention for the closest cue.
         prefix = pl[:idx + 1]
-        rem = max((prefix.rfind(c) for c in _EQUIP_REMOVAL_CUES), default=-1)
-        add = max((prefix.rfind(c) for c in _EQUIP_ADDITION_CUES), default=-1)
+        # restrict the cue search to the mention's own clause: drop everything up
+        # to (and including) the last clause separator before it.
+        cut = max((prefix.rfind(sep) + len(sep) for sep in _CLAUSE_SEPS
+                   if sep in prefix), default=0)
+        clause = prefix[cut:]
+        rem = max((clause.rfind(c) for c in _EQUIP_REMOVAL_CUES), default=-1)
+        add = max((clause.rfind(c) for c in add_cues), default=-1)
         if rem < 0 and add < 0:
             continue
         (exclude if rem > add else extra).add(canon)
     return sorted(exclude), sorted(extra)
+
+
+def _resolve_equipment(prompt: str) -> tuple[list[str], list[str]]:
+    """Resolve equipment polarity from the prompt against the graph's Equipment
+    surface forms. Thin DB-backed wrapper over `_classify_equipment`."""
+    return _classify_equipment(prompt, _equipment_surface())
+
+
+# Lead-ins that turn a following noun into a NAME-level exclusion — "exclude
+# deadlifts", "skip burpees", "no more lunges". Distinct from the joint-avoid
+# cues (those route through the clarify gate) and the equipment polarity cues:
+# a captured term that resolves to a known joint / equipment / muscle / pattern
+# is left to its own resolver, so what survives is an exercise-name term.
+_EXCLUDE_CUES = (
+    "exclude ", "excluding ", "no more ", "skip ", "skipping ", "drop ",
+    "without ", "leave out ", "don't do ", "dont do ", "no ",
+)
+# Generic words that can follow a cue but aren't exercise names — kept out of the
+# name filter so "no equipment", "no time" etc. don't become bogus substrings.
+_EXCLUDE_STOP_WORDS = {
+    "equipment", "kit", "gear", "weights", "weight", "time", "rest", "warmup",
+    "cooldown", "session", "reps", "rep", "sets", "set", "machines", "machine",
+    # compound tails so the bare "no " cue doesn't capture them ("no more X",
+    # "no longer X" are handled by reaching the real noun after them).
+    "more", "longer",
+}
+
+
+def _depluralize(tok: str) -> str:
+    """Crude singular stem so a CONTAINS match on the exercise name works:
+    "deadlifts" -> "deadlift", "burpees" -> "burpee". Leaves short tokens alone."""
+    if len(tok) > 4 and tok.endswith("ies"):
+        return tok[:-3] + "y"
+    if len(tok) > 3 and tok.endswith("s") and not tok.endswith("ss"):
+        return tok[:-1]
+    return tok
+
+
+def _resolve_exclude_terms(prompt: str, known: set[str]) -> list[str]:
+    """Name-level exclusions parsed from the prompt: the noun right after an
+    exclude cue, de-pluralized, dropped if it resolves to a joint / equipment /
+    muscle / pattern (those have dedicated paths) or a stop-word. Returns
+    lowercase name substrings for `safety.eligible`'s CONTAINS filter. Captures
+    the FIRST noun after each cue only — conservative, to avoid over-reaching
+    across a clause. Deterministic, no LLM."""
+    pl = f" {prompt.lower()} "
+    terms: set[str] = set()
+    for cue in _EXCLUDE_CUES:
+        start = 0
+        while True:
+            i = pl.find(cue, start)
+            if i < 0:
+                break
+            start = i + len(cue)
+            tail = pl[start:]
+            for sep in (",", ".", ";", " but ", " and ", " or ", " with ",
+                        " for ", " to ", " on "):
+                tail = tail.split(sep)[0]
+            words = [w.strip(".,;:") for w in tail.split() if w.strip(".,;:")]
+            while words and words[0] in _EQUIP_STOPHEAD:
+                words = words[1:]
+            if not words:
+                continue
+            tok = words[0]
+            if len(tok) < 3 or not tok.isalpha():
+                continue
+            stem = _depluralize(tok)
+            if tok in known or stem in known or stem in _EXCLUDE_STOP_WORDS:
+                continue
+            terms.add(stem)
+    return sorted(terms)
 
 
 def _resolve_intent(prompt: str, muscle_surface: dict[str, str], patterns: list[str]) -> dict:

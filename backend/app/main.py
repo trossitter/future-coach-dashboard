@@ -67,7 +67,8 @@ def roster() -> dict:
         OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
         OPTIONAL MATCH (m)-[:HAS_ACCESS_TO]->(eq:Equipment)
         RETURN m.id AS id, m.name AS name, collect(DISTINCT i.region) AS injuries,
-               collect(DISTINCT eq.name) AS equipment
+               collect(DISTINCT eq.name) AS equipment,
+               coalesce(m.dislikes, []) AS dislikes
         ORDER BY name
         """
     )
@@ -79,6 +80,7 @@ def roster() -> dict:
             "id": r["id"], "name": r["name"],
             "injuries": [x for x in r["injuries"] if x],
             "equipment": sorted(x for x in r["equipment"] if x),
+            "dislikes": [x for x in r["dislikes"] if x],
             "journey_stage": s.get("journey_stage"),
             "adherence_pct": adh.get("latest_pct"),
             "adherence_trend": adh.get("trend"),

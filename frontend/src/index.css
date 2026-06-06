@@ -263,6 +263,9 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .equip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .equip-chip { text-transform: none; letter-spacing: 0; }
 .equip-chip.off { color: var(--sub); border-style: dashed; text-decoration: line-through; opacity: 0.6; }
+/* dislikes: read-only member context, not an interactive control */
+.dislike-chip { color: var(--sub); border-style: dashed; cursor: default; }
+.dislike-chip:hover { background: transparent; border-color: var(--hair); }
 
 /* panel header with inline action */
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
