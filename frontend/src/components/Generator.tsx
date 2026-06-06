@@ -286,8 +286,9 @@ export function Generator({ memberId, memberName, injuries, equipment }: any) {
         placeholder={`Describe the session for ${memberName || "this member"} — e.g. "full-body, pec isolation, 45 min" or "lower body, easy on the knee"`} />
       <div className="row">
         <label>Time
-          <input type="number" value={time} min={15} max={90}
-            onChange={(e) => setTime(+e.target.value)} /> min
+          <input type="text" inputMode="numeric" value={time} min={15} max={90}
+            onChange={(e) => setTime(e.target.value === "" ? 0
+              : parseInt(e.target.value.replace(/\D/g, ""), 10) || 0)} /> min
         </label>
         <button className={"gen-btn" + (dirty ? " dirty" : "")}
           onClick={() => run()} disabled={loading || !memberId}>
