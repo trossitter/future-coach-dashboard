@@ -59,31 +59,19 @@ personalization better, never worse.
 - **Stable IDs** (exercises already carry UUIDs; concepts should too) let
   external systems integrate by identity, not by label — which also unlocks i18n.
 
-## Scaling — the axes that actually count
+## Scaling
 
-The catalog (+50,000 exercises) is the *least* threatening axis: it's **bounded**
-— there is no universe with infinite exercises, and a native ANN index over
-bounded concept vocabularies absorbs it. What grows *without limit* is **members,
-member × time, and the chat corpus** — that's where to look first.
+The exercise catalog is manageable: it is finite, indexable, and cacheable. The
+production scaling risk is member data that grows with adoption and time.
 
-**Unbounded — what actually counts:**
-
-| Axis | Why it's the real load | Where it bites → the fix |
-|------|------------------------|--------------------------|
-| Members (tenants) | KG2 is one subgraph per person; growth is linear in members | queries are member-scoped (`MATCH (m:Member {id})…`) so they stay **local** — good. But `/roster` fans out `longitudinal.summary()` **per member** (N+1, `main.py`) → batch + paginate. And the durable token counter is a single global `(:SystemUsage {id:'llm'})` node — a write hotspot under concurrency → shard per tenant or move to a Redis `INCR`. |
-| Member × time | adherence weeks, Oura readings, weight, chat accrue **forever** per member — a 3-year member is thousands of nodes | the graph should hold *derived signals*, not bulk telemetry → time-bound queries + roll raw series into weekly/monthly summary nodes (or offload raw series to a time-series store). |
-| Chat / embedding corpus | all members' messages dwarf 50k exercises — the **dominant** vector set | today `_retrieve_general` over-fetches the global `chat_embedding` top-k **then** filters by member (`copilot.py` — ANN-*then*-filter; fine at this scale, but at many members the global top-k can miss the target member entirely) → metadata-prefiltered / per-member-partitioned ANN (filter-*before*-ANN). Re-embedding the whole corpus on a model change is the real one-off cost. |
-| LLM throughput | the external ceiling, not ours — Anthropic tokens/min + concurrency | per-tenant budgets, request queueing, prompt-cache amortization; the token-budget guard is step one. |
-
-**Bounded — the catalog (+50,000 exercises):**
-
-| Path | Behavior at scale | Why |
-|------|-------------------|-----|
-| Concept resolution | flat | muscles/joints/equipment/patterns are **bounded** vocabularies — they don't grow with exercises. Candidate embeddings are cached once per label. |
-| Exercise semantic search | sub-linear | Neo4j **native vector (ANN) index**, not a per-request re-embed. 50k vectors is routine. |
-| Safety traversal | bounded by the member | `Member→injury→joint←loads←Exercise` is driven by the member's few injuries, not the dataset size; `Joint.name`/`Exercise.id` are indexed. |
-| `eligible` listing | O(exercises) scan | **honest bottleneck.** At 50k, push the muscle/pattern filter into an index and paginate / top-k rather than returning the whole pool. |
-| Ingestion | one-time, batched | `UNWIND` batches; embed only new/changed rows incrementally. |
+| Area | Risk | Production approach |
+|------|------|---------------------|
+| Roster summaries | `/roster` computes longitudinal summaries per member, which becomes N+1 work as membership grows. | Batch and paginate summaries. |
+| Member history | Biometrics, adherence, weight, and chat accumulate for the lifetime of each member. | Keep derived signals in the graph, roll up or offload raw time series, and keep queries time-windowed. |
+| Chat embeddings | Chat history becomes the largest vector corpus. Global ANN followed by member filtering can waste retrieval budget. | Use metadata-prefiltered ANN search or per-member/tenant vector partitions. |
+| Token accounting | A shared `(:SystemUsage {id: "llm"})` node can become a concurrent write hotspot. | Shard counters per tenant or move accounting to an atomic external counter. |
+| LLM throughput | External model rate limits bound concurrency and token volume. | Use per-tenant budgets, request queueing, and prompt-cache reuse. |
+| Catalog eligibility | Catalog growth is not the main bottleneck, but eligibility queries still need predictable latency. | Index and paginate by muscle, movement pattern, equipment, and contraindication status. |
 
 ## Internationalization (e.g. a French userbase)
 
