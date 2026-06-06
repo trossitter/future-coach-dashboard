@@ -311,14 +311,12 @@ def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
             hit_m = tm & set(c.get("muscles", []))
             hit_p = tp & set(c.get("patterns", []))
             if hit_m:
-                because.append(f"targets requested muscle(s): {', '.join(sorted(hit_m))}")
+                because.append(f"Targets {', '.join(sorted(hit_m))}")
             if hit_p:
-                because.append(f"matches movement pattern(s): {', '.join(sorted(hit_p))}")
-            if c.get("score"):
-                because.append(f"semantic match to the prompt (score {c['score']})")
+                because.append(f"Matches the {', '.join(sorted(hit_p))} work you asked for")
             out.append({
                 "exercise_id": p["id"], "name": p["name"],
-                "chosen_because": because or ["fits the available safe pool"],
+                "chosen_because": because or ["Rounds out the session"],
                 "safe_because": _safe_because(member_id, p["id"], excl_eq, extra_eq),
             })
     return out
@@ -338,21 +336,21 @@ def _safe_because(member_id: str, exercise_id: str,
     if r.get("joint_ok", True):
         loaded = r.get("joints_loaded") or []
         if loaded:
-            out.append(f"loads {', '.join(loaded)} — none are injured")
+            out.append(f"Works {', '.join(loaded)}, none of them injured")
         else:
-            out.append("loads no injured joint")
+            out.append("Doesn't load an injured joint")
     # pattern
     patterns = r.get("patterns") or []
     if patterns:
-        out.append(f"movement pattern {', '.join(patterns)} — not contraindicated")
+        out.append(f"{', '.join(patterns)} is cleared for their injuries")
     else:
-        out.append("no contraindicated pattern")
+        out.append("No contraindicated movement")
     # equipment
     req = r.get("required_equipment") or []
     if req:
-        out.append(f"requires {', '.join(req)} — all available")
+        out.append(f"Uses {', '.join(req)}, all available")
     else:
-        out.append("needs no equipment")
+        out.append("No equipment needed")
     return out
 
 
