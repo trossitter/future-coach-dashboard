@@ -194,7 +194,7 @@ exercises that pass the same filter.
 
 ---
 
-## Ontology grounding (small, well-justified subset)
+## Ontology grounding 
 
 - **SKOS** — gym-jargon altLabels + SNOMED `exactMatch`: the catalog↔ontology bridge.
 - **SNOMED CT** (via NCI EVS) — official codes for the 9 joints + patellofemoral
