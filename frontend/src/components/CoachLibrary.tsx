@@ -25,7 +25,8 @@ export function CoachLibrary({ onClose }: { onClose: () => void }) {
     setName(""); load();
   }
 
-  const shown = region ? exercises.filter((e) => regionForExercise(e) === region) : exercises;
+  // cards populate only once a region is chosen — browse target-first
+  const shown = region ? exercises.filter((e) => regionForExercise(e) === region) : [];
   const active = (r: string) => region === r || hover === r;
   const selectRegion = (r: string) => setRegion(region === r ? null : r);
 
@@ -42,7 +43,6 @@ export function CoachLibrary({ onClose }: { onClose: () => void }) {
 
           <div className="lib-right">
             <div className="region-chips">
-              <button className={"chip" + (!region ? " on" : "")} onClick={() => setRegion(null)}>All</button>
               {REGIONS.map((r) => (
                 <button key={r} className={"chip" + (active(r) ? " on" : "")}
                   onMouseEnter={() => setHover(r)} onMouseLeave={() => setHover(null)}
@@ -50,7 +50,9 @@ export function CoachLibrary({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <div className="lib-grid">
-              {shown.length === 0 && <div className="muted">Nothing in {region} yet.</div>}
+              {!region
+                ? <div className="muted lib-pick">Pick a region to see exercises.</div>
+                : shown.length === 0 && <div className="muted">Nothing in {region} yet.</div>}
               {shown.map((e) => (
                 <div key={e.id} className="lib-card" title={e.notes || e.name}>
                   <div className="lib-thumb"><BodyThumb region={regionForExercise(e)} /></div>
