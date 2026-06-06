@@ -214,3 +214,130 @@ def resolve(text: str, label: str = "Muscle") -> dict:
 def search_exercises(q: str, k: int = 5) -> dict:
     """Semantic (vector) search over the Exercise embedding index."""
     return {"query": q, "results": resolver.semantic_exercise_search(q, k)}
+
+
+# --- coach library (LOCAL EXPERIMENT — not part of the submitted build) -------
+# Coach Sam's own exercises as first-class graph nodes (Coach)-[:AUTHORED]->
+# (CoachExercise), so coach-authored content could flow through the same system.
+_COACH_ID = "sam"
+_COACH_SEED = [
+    {"name": "Sam's Tempo Goblet Squat", "pattern": "lower push - squat",
+     "sets": 4, "reps": "6 @ 3-1-1 tempo",
+     "notes": "Default lower-body strength builder — owns the eccentric."},
+    {"name": "Half-Kneeling Landmine Press", "pattern": "upper push - vertical",
+     "sets": 3, "reps": "8-10 / side",
+     "notes": "Shoulder-friendly vertical press for desk-bound members."},
+    {"name": "Copenhagen Plank Progression", "pattern": "core - anti-lateral flexion",
+     "sets": 3, "reps": "20-30s / side", "notes": "Adductor + lateral-core staple for runners."},
+    {"name": "Rear-Foot-Elevated Split Squat", "pattern": "lower push - split squat",
+     "sets": 3, "reps": "8 / side", "notes": "Unilateral strength once a knee is cleared."},
+    {"name": "Tall-Kneeling Band Pulldown", "pattern": "upper pull - vertical",
+     "sets": 3, "reps": "10-12",
+     "notes": "Keeps ribs stacked while teaching a clean vertical pull without a machine."},
+    {"name": "Chest-Supported Dumbbell Row Ladder", "pattern": "upper pull - horizontal",
+     "sets": 4, "reps": "6-8-10-12",
+     "notes": "My back-builder when I want hard pulling without loading the low back."},
+    {"name": "Feet-Elevated Tempo Push-Up", "pattern": "upper push - horizontal",
+     "sets": 3, "reps": "6-10 @ 3-sec lower",
+     "notes": "Progress before heavier pressing; pause with the chest one inch from the floor."},
+    {"name": "Kickstand Kettlebell RDL", "pattern": "lower pull - hip lift",
+     "sets": 3, "reps": "8 / side",
+     "notes": "Hinge practice with just enough asymmetry to expose side-to-side control."},
+    {"name": "Reverse Lunge to Low Box", "pattern": "lower push - lunge",
+     "sets": 3, "reps": "8 / side",
+     "notes": "My go-to lunge regression: tap the box, stay tall, drive through the front foot."},
+    {"name": "Sled Push Breathing Intervals", "pattern": "cardio - locomotion",
+     "sets": 6, "reps": "20m push + 60s easy walk",
+     "notes": "Conditioning that feels athletic without asking for a complicated skill."},
+    {"name": "Suitcase Carry Reset", "pattern": "core - carry",
+     "sets": 4, "reps": "30-40m / side",
+     "notes": "Walk slowly enough that the weight can't pull you into a side bend."},
+    {"name": "Half-Kneeling Pallof Press Reach", "pattern": "core - anti-rotation",
+     "sets": 3, "reps": "8-10 / side",
+     "notes": "Anti-rotation with a reach so the member earns the exhale and rib position."},
+    {"name": "Dead-Bug Heel Tap Series", "pattern": "core - anti-extension",
+     "sets": 3, "reps": "6-8 / side",
+     "notes": "Use this when bracing is the limiter; low back stays heavy on the floor."},
+    {"name": "Lateral Band Walk Primer", "pattern": "lower - abduction",
+     "sets": 2, "reps": "10 steps each way",
+     "notes": "Warm hips before squats or carries; quiet upper body, steady foot pressure."},
+    {"name": "World's-Greatest Stretch Flow", "pattern": "mobility - dynamic",
+     "sets": 2, "reps": "4 / side",
+     "notes": "A fast warmup flow when I need hips, t-spine, and hamstrings online."},
+    {"name": "90-90 Breathing Cooldown", "pattern": "regen",
+     "sets": 2, "reps": "5 slow breaths",
+     "notes": "Downshift after hard sessions; heels on the wall, exhale until ribs drop."},
+]
+
+
+def _clib_id(name: str) -> str:
+    return "clib_" + "".join(ch for ch in name.lower() if ch.isalnum())[:28]
+
+
+def _region_for(pattern: str | None, name: str | None) -> str:
+    """Map an exercise to a body region a coach browses by — target-first, since
+    a coach thinks 'chest today', not 'find the name starting with F'."""
+    p, n = (pattern or "").lower(), (name or "").lower()
+    if any(t in n for t in ("tricep", "bicep", "curl")):
+        return "Arms"
+    if "upper push" in p:
+        return "Shoulders" if "vertical" in p else "Chest"
+    if "upper pull" in p or "row" in n or "pull-up" in n:
+        return "Back"
+    if "core" in p or "plank" in n or "ab " in n:
+        return "Core"
+    if "hinge" in p or "deadlift" in n or "glute" in n or "hip thrust" in n:
+        return "Glutes"
+    if "lower" in p or "squat" in n or "lunge" in n:
+        return "Legs"
+    if any(t in p for t in ("cardio", "plyo", "condition")):
+        return "Cardio"
+    return "Full body"
+
+
+def _coach_library_upsert(body: dict) -> None:
+    name = (body.get("name") or "").strip()
+    if not name:
+        return
+    run(
+        """
+        MERGE (c:Coach {id:$id}) SET c.name='Sam'
+        MERGE (c)-[:AUTHORED]->(e:CoachExercise {id:$eid})
+        SET e.name=$name, e.pattern=$pattern, e.sets=$sets, e.reps=$reps,
+            e.notes=$notes, e.created=coalesce(e.created, datetime())
+        """,
+        id=_COACH_ID, eid=_clib_id(name), name=name, pattern=body.get("pattern", ""),
+        sets=body.get("sets"), reps=body.get("reps", ""), notes=body.get("notes", ""),
+    )
+
+
+def _ensure_coach_library_seed() -> None:
+    run("MERGE (c:Coach {id:$id}) SET c.name='Sam'", id=_COACH_ID)
+    for ex in _COACH_SEED:
+        _coach_library_upsert(ex)
+
+
+@app.get("/coach/library")
+def coach_library() -> dict:
+    _ensure_coach_library_seed()
+    rows = run(
+        """
+        MATCH (:Coach {id:$id})-[:AUTHORED]->(e:CoachExercise)
+        RETURN e.id AS id, e.name AS name, e.pattern AS pattern,
+               e.sets AS sets, e.reps AS reps, e.notes AS notes
+        ORDER BY e.created
+        """,
+        id=_COACH_ID,
+    )
+    for r in rows:
+        r["region"] = _region_for(r.get("pattern"), r.get("name"))
+    return {"coach": "Sam", "count": len(rows), "exercises": rows}
+
+
+@app.post("/coach/library")
+def coach_library_add(body: dict = Body(default={})) -> dict:
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    _coach_library_upsert(body)
+    return {"added": name}
