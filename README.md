@@ -14,45 +14,39 @@ squats for her?"* by pointing at the exact graph path that produced the decision
 ## Architecture
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{
-  'primaryColor':'#edeef1','primaryTextColor':'#16161a',
-  'primaryBorderColor':'#7c2f3d','lineColor':'#7c2f3d',
-  'secondaryColor':'#e7e9ec','tertiaryColor':'#f5f6f8',
-  'clusterBkg':'#f5f6f8','clusterBorder':'#c9ccd2',
-  'edgeLabelBackground':'#ffffff','fontSize':'14px'}}}%%
 flowchart TB
-  subgraph UI["Coach dashboard · React + Vite"]
+  subgraph UI["Coach dashboard - React + Vite"]
     A["Workout Generator (Surface A)"]
     B["AI Copilot (Surface B)"]
   end
 
-  subgraph RT["Agentic runtime · LangGraph"]
-    G["Generation crew<br/>planner → retriever → safety-reviewer → assembler"]
-    C["Copilot crew<br/>router → retriever → answerer"]
+  subgraph RT["Agentic runtime - LangGraph"]
+    G["Generation crew<br/>planner - retriever - safety-reviewer - assembler"]
+    C["Copilot crew<br/>router - retriever - answerer"]
   end
 
-  SAFE{{"Deterministic safety filter<br/>(graph traversal — never the prompt)"}}
+  SAFE{{"Deterministic safety filter<br/>graph traversal, never the prompt"}}
 
-  subgraph KG["Neo4j — single source of truth (one database)"]
-    K1[("KG1 · Movement / Clinical")]
-    K2[("KG2 · Member Context")]
-    VEC[["Vector indexes<br/>exercises · chat"]]
+  subgraph KG["Neo4j - single source of truth, one database"]
+    K1[("KG1 - Movement / Clinical")]
+    K2[("KG2 - Member Context")]
+    VEC[["Vector indexes<br/>exercises, chat"]]
   end
 
-  SEED["data/*.json ◄── seed only<br/>ingested once (graph/ingest.py)"]
+  SEED["data/*.json seed<br/>ingested once via graph/ingest.py"]
   SEED -.->|"POST /ingest"| KG
 
-  LLM["Claude (Haiku) — phrasing + structuring only"]
-  GR["Grounding · SNOMED CT · SKOS · PROV-O · OPE/COPPER"]
+  LLM["Claude (Haiku) - phrasing and structuring only"]
+  GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
 
   A -->|SSE| G --> SAFE --> KG
   B -->|SSE| C --> KG
-  G -. structure + narrate .-> LLM
-  C -. grounded answer .-> LLM
-  G -. semantic search .-> VEC
-  C -. chat RAG .-> VEC
-  K1 -. exactMatch .- GR
-  K2 -. AFFECTS / HAS_ACCESS_TO .- K1
+  G -.->|"structure + narrate"| LLM
+  C -.->|"grounded answer"| LLM
+  G -.->|"semantic search"| VEC
+  C -.->|"chat RAG"| VEC
+  K1 -.->|exactMatch| GR
+  K2 -.->|"AFFECTS / HAS_ACCESS_TO"| K1
 ```
 
 **Neo4j is the single source of truth.** Every fact the coach sees — exercises,
