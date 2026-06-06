@@ -520,10 +520,61 @@ def _filtered_out(member_id: str, intent: dict, limit: int = 5,
 
 
 NARRATOR_SYSTEM = (
-    "You are a fitness coach. In 2-3 sentences, explain this workout to the coach: "
-    "what it targets, how it respects the member's journey stage, and that unsafe "
-    "options were filtered out by the graph. Be concrete and warm; no preamble."
+    "You are the coach, sending the member a quick note with their workout — like a "
+    "text before they train. VOICE: first person ('I've ...'), to the member as "
+    "'you/your', never third person. LENGTH: 1-2 sentences, warm and human — a little "
+    "encouragement is welcome; don't sound like a robot. "
+    "Tell them what's IN STORE: the focus and feel of the session (e.g. 'upper-body "
+    "push and some core work'). You may name a highlight move or two, but do NOT "
+    "roll-call every exercise — the plan is right there beneath the note. If you "
+    "adjusted for their safety, work in ONE warm clause about it (e.g. 'and I kept "
+    "the load off your knee by swapping out the lunges and step-ups'). "
+    "GROUNDING (the graph owns the facts): name ONLY exercises present in the JSON — "
+    "never invent one, and only name a removed exercise if it's in "
+    "`filtered_for_safety`. No invented anatomy ('flexion', 'rotation', 'instability'). "
+    "NEVER list everything that was removed. Skip empty filler ('building resilience', "
+    "'respects where you are in your journey'). No preamble, no markdown."
 )
+
+
+def _filtered_because(f: dict) -> list[str]:
+    """Human-readable, GRAPH-DERIVED reasons an exercise was filtered — built from
+    the same reason records the evidence panel shows, so the narrator phrases the
+    graph's actual basis rather than inventing one."""
+    out: list[str] = []
+    for r in f.get("reasons", []):
+        via = ", ".join(r.get("via", []))
+        if r["type"] == "joint":
+            out.append(f"loads the {via}" if via else "loads a flagged joint")
+        elif r["type"] == "pattern":
+            out.append(f"contraindicated movement pattern ({via})" if via
+                       else "a contraindicated movement pattern")
+        elif r["type"] == "equipment":
+            out.append(f"needs unavailable equipment ({via})" if via
+                       else "needs unavailable equipment")
+    return out
+
+
+def _narration_payload(prompt: str, result: dict) -> dict:
+    """The grounded fact-set handed to the narrator: the plan by section plus the
+    filtered exercises WITH their graph reasons. Pure (no LLM/DB) so it's testable
+    and so what the model sees is exactly what the graph produced."""
+    plan_dict = result["plan"]
+    names = {s: [p["name"] for p in plan_dict.get(s, [])]
+             for s in ("warmup", "main", "cooldown")}
+    # Only SAFETY-relevant removals are worth a brief mention to the member;
+    # equipment-only exclusions (gear they don't have) are noise to them and live
+    # in the coach's evidence panel, not the prose. Drop them here so the narrator
+    # can't enumerate them at all.
+    safety_filtered = []
+    for f in result.get("filtered_out", []):
+        reasons = [r for r in f.get("reasons", []) if r["type"] in ("joint", "pattern")]
+        if reasons:
+            safety_filtered.append({
+                "name": f["name"],
+                "filtered_because": _filtered_because({"reasons": reasons})})
+    return {"request": prompt, "journey_stage": result["journey_stage"],
+            "plan": names, "filtered_for_safety": safety_filtered}
 
 
 def narration_stream(prompt: str, result: dict):
@@ -536,12 +587,7 @@ def narration_stream(prompt: str, result: dict):
             yield ("That's a wrap — the plan above is built straight from the graph, "
                    "but we've hit the token cap so AI narration is on cooldown.")
         return
-    plan_dict = result["plan"]
-    names = {s: [p["name"] for p in plan_dict.get(s, [])]
-             for s in ("warmup", "main", "cooldown")}
-    user = json.dumps({"request": prompt, "journey_stage": result["journey_stage"],
-                       "plan": names,
-                       "filtered_for_safety": [f["name"] for f in result["filtered_out"]]})
+    user = json.dumps(_narration_payload(prompt, result))
     yield from llm.stream(NARRATOR_SYSTEM, user, max_tokens=400)
 
 
