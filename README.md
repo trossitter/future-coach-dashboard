@@ -36,7 +36,7 @@ flowchart TB
   SEED["data/*.json seed<br/>ingested once via graph/ingest.py"]
   SEED -.->|"POST /ingest"| KG
 
-  LLM["LLM provider<br/>Venice default / Claude fallback<br/>phrasing + structuring only"]
+  LLM["LLM provider<br/>Anthropic Haiku default / Qwen fallback<br/>phrasing + structuring only"]
   GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
 
   A -->|SSE| G --> SAFE --> KG
@@ -104,8 +104,17 @@ populated). To re-seed manually after editing `data/*.json`, `curl -X POST local
 
 The LLM is **optional** — without a key the system still generates safe plans and
 grounded answers through the graph, just without streamed natural-language
-narration. To enable narration and structured intent routing, drop a provider key
-in `knowledge-graph/.env` (gitignored):
+narration. Anthropic Haiku is the default provider because this path keeps prompt
+caching and is stable for the light phrasing/structuring work:
+
+```
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-haiku-4-5
+```
+
+Venice/Qwen remains available as an explicit OpenAI-compatible fallback behind
+the same interface:
 
 ```
 LLM_PROVIDER=venice
@@ -116,18 +125,9 @@ MODEL_NARRATE=qwen3-next-80b
 MODEL_COPILOT=qwen3-next-80b
 ```
 
-Claude is a drop-in fallback behind the same interface:
-
-```
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
-CLAUDE_MODEL=claude-haiku-4-5
-```
-
 The model is deliberately right-sized: the graph owns safety, eligibility,
 retrieval, and provenance; the provider only phrases narration and returns small
-structured routing/planning objects. The default Venice path is OpenAI-compatible
-and keeps the project privacy-preserving by avoiding model-hosted domain logic.
+structured routing/planning objects.
 
 > First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
 
@@ -186,7 +186,7 @@ Full node/edge contract: [`docs/SCHEMA.md`](docs/SCHEMA.md).
 | **Neo4j (labeled property graph)** | Spec-preferred; the safety question *is* a traversal. One DB holds both subgraphs **and** native vector indexes, so GraphRAG's structural + semantic halves live together. |
 | **Deterministic safety, LLM-for-phrasing** | The graded promise is safety *from the graph, not the prompt*. The safety-reviewer validates every prescribed id ∈ the graph-derived safe set; the LLM cannot introduce an unsafe exercise (prompt-injection can't move it either). |
 | **LangGraph multi-agent crews** | Typed-state `StateGraph`s with explicit edges and a critic loop — the agentic workflow the brief asks for, with safety as a hard gate, not a probabilistic hope. |
-| **Venice default; Claude fallback** | Privacy-preserving and right-sized: the graph does safety/reasoning, so the LLM only handles light structuring + phrasing. Venice uses the OpenAI-compatible path (`qwen3-next-80b` per role by default); Claude remains a one-env-var fallback. |
+| **Anthropic Haiku default; Venice/Qwen fallback** | Right-sized and cache-friendly: the graph does safety/reasoning, so the LLM only handles light structuring + phrasing. Haiku keeps prompt caching on the default path; Venice remains an explicit OpenAI-compatible fallback (`qwen3-next-80b` per role). |
 | **fastembed (ONNX bge-small)** | Local embeddings, no PyTorch, no per-lookup API cost — keeps concept resolution and chat retrieval cheap and offline. |
 | **3-pass resolver (exact → fuzzy+alias → vector)** | Vectors are a *fallback*, not the backbone — gym jargon ("pecs", "delts") resolves deterministically via SKOS-style altLabels; embeddings handle only the genuinely novel tail. |
 

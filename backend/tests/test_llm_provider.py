@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib
+import os
 from types import SimpleNamespace
+
+import pytest
 
 from app.schemas import RouteDecision
 
@@ -17,6 +20,23 @@ ENV_KEYS = [
     "CLAUDE_MODEL",
     "LLM_TOKEN_BUDGET",
 ]
+
+
+@pytest.fixture(autouse=True)
+def restore_llm_modules():
+    original_env = {key: os.environ.get(key) for key in ENV_KEYS}
+    yield
+    for key, value in original_env.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+    import app.config as config
+    import app.llm as llm
+
+    importlib.reload(config)
+    importlib.reload(llm)
 
 
 def load_llm(monkeypatch, **env):
@@ -96,6 +116,7 @@ def test_no_key_keeps_deterministic_path(monkeypatch):
 
     monkeypatch.setattr(provider, "_client", fail_if_called)
 
+    assert llm._provider_name() == "anthropic"
     assert llm.is_available() is False
     assert llm.parse("system", "user", RouteDecision, max_tokens=100) is None
     assert llm.complete("system", "user", max_tokens=100) is None
@@ -103,6 +124,20 @@ def test_no_key_keeps_deterministic_path(monkeypatch):
 
 
 def test_provider_selection_uses_active_provider_key(monkeypatch):
+    llm = load_llm(
+        monkeypatch,
+        ANTHROPIC_API_KEY="ak-test",
+    )
+    assert llm.is_available() is True
+    assert llm._provider_name() == "anthropic"
+
+    llm = load_llm(
+        monkeypatch,
+        VENICE_API_KEY="vk-test",
+    )
+    assert llm.is_available() is False
+    assert llm._provider_name() == "anthropic"
+
     llm = load_llm(
         monkeypatch,
         LLM_PROVIDER="venice",
@@ -122,9 +157,9 @@ def test_provider_selection_uses_active_provider_key(monkeypatch):
     llm = load_llm(
         monkeypatch,
         LLM_PROVIDER="anthropic",
-        ANTHROPIC_API_KEY="ak-test",
+        VENICE_API_KEY="vk-test",
     )
-    assert llm.is_available() is True
+    assert llm.is_available() is False
     assert llm._provider_name() == "anthropic"
 
 
