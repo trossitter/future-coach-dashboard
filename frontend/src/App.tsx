@@ -125,8 +125,9 @@ export default function App() {
           <footer className="foot">
             Synthetic data only · knowledge-graph-backed · {roster.length} members
           </footer>
-          <button className="protocols-hint" onClick={() => setShowProtocols(true)}>
-            Coming soon …
+          <button className="protocols-hint" onClick={() => setShowProtocols(true)}
+            style={{ fontSize: "16px" }}>
+            Coming soon…
           </button>
         </div>
       </div>
@@ -155,6 +156,17 @@ export default function App() {
           )}
         </div>
       )}
+
+      {/* quiet designer signature, bottom-left — kept at the hint's small size */}
+      <div
+        style={{
+          position: "fixed", left: 20, bottom: 14, zIndex: 5,
+          fontSize: "12.5px", letterSpacing: "0.08em", fontStyle: "italic",
+          color: "var(--sub)", pointerEvents: "none",
+        }}
+      >
+        designed by Thalia
+      </div>
 
       <button
         className={"copilot-launcher" + (chatOpen ? " open" : "")}
