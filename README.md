@@ -228,6 +228,30 @@ More: [`docs/DESIGN-NOTES.md`](docs/DESIGN-NOTES.md).
 
 ---
 
+## Worked Examples
+
+Two scenarios — both **fixture-backed and asserted in CI** so they can't quietly
+rot: [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py)
+runs them against [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json).
+
+**1 · Injury + limited equipment — Jordan Rivera** (recovering left knee, no barbell)
+
+> *"Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts."*
+
+- **Parsed deterministically:** equipment → drop `Barbell`, keep `Dumbbell` + `Kettlebell`; name-exclude `deadlift`; journey stage `at_risk` (lower volume).
+- **Filtered by the graph (not the prompt):** knee-loading and plyometric work — lunges, step-ups, jumps — is excluded via the `part-of` + `contraindicated` traversal; barbell-only lifts are dropped and **auto-substituted** with equipment-valid equivalents.
+- **Down-ranked, not dropped:** a knee-*stressing* but not *contraindicated* move can still appear — ranked last and badged "used sparingly."
+- **Invariant:** 0 prescribed exercises are contraindicated, none need a barbell, and no deadlift appears.
+
+**2 · Limited equipment, no injury — Duncan Idaho**
+
+> *"Full-body strength, only dumbbells and a kettlebell, no barbell, no machines."*
+
+- Equipment → drop `Barbell`, keep `Dumbbell` + `Kettlebell`; journey stage `progressing`.
+- **The contrast that proves safety is data-driven:** with no injury on file, the *same* split-squats, lunges, and jumps that were excluded for Jordan are now **admitted** — nothing in the prompt changed the safety logic; the member's injury graph did. Barbell/machine work is still dropped and substituted.
+
+---
+
 ## Tests And Evaluation
 
 ```bash
