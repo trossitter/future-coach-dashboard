@@ -116,7 +116,8 @@ export default function App() {
                 <h2 className="member-headline">{sel.name}</h2>
                 <Generator key={sel.id} memberId={sel.id} memberName={sel.name}
                   injuries={(sel.injuries || []).filter(Boolean)}
-                  equipment={(sel.equipment || []).filter(Boolean)} />
+                  equipment={(sel.equipment || []).filter(Boolean)}
+                  dislikes={(sel.dislikes || []).filter(Boolean)} />
               </section>
             </>
           )}

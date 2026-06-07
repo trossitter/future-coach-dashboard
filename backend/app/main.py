@@ -23,13 +23,23 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def _warm_embedding_model() -> None:
-    """Load the ONNX embedding model at boot so the first request isn't cold."""
+def _bootstrap() -> None:
+    """Warm the embedding model and seed the graph on first boot, so a single
+    `docker compose up` is genuinely all it takes — no manual /ingest call.
+
+    Ingest is idempotent (MERGE) and skipped when the graph is already populated,
+    so `--reload` restarts stay fast; a connection blip never crashes boot."""
     try:
         from .embeddings import embed
         embed(["warmup"])
     except Exception:
         pass
+    try:
+        rows = run("MATCH (e:Exercise) RETURN count(e) AS n")
+        if not rows or rows[0]["n"] == 0:
+            ingest_all()
+    except Exception:
+        pass  # neo4j not ready yet / transient — first request can still /ingest
 
 
 @app.get("/health")
@@ -67,7 +77,8 @@ def roster() -> dict:
         OPTIONAL MATCH (m)-[:HAS_INJURY]->(i:Injury)
         OPTIONAL MATCH (m)-[:HAS_ACCESS_TO]->(eq:Equipment)
         RETURN m.id AS id, m.name AS name, collect(DISTINCT i.region) AS injuries,
-               collect(DISTINCT eq.name) AS equipment
+               collect(DISTINCT eq.name) AS equipment,
+               coalesce(m.dislikes, []) AS dislikes
         ORDER BY name
         """
     )
@@ -79,6 +90,7 @@ def roster() -> dict:
             "id": r["id"], "name": r["name"],
             "injuries": [x for x in r["injuries"] if x],
             "equipment": sorted(x for x in r["equipment"] if x),
+            "dislikes": [x for x in r["dislikes"] if x],
             "journey_stage": s.get("journey_stage"),
             "adherence_pct": adh.get("latest_pct"),
             "adherence_trend": adh.get("trend"),

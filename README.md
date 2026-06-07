@@ -92,9 +92,11 @@ Docker Engine all work. No local Python/Node/Neo4j needed; everything runs in
 containers.
 
 ```bash
-docker compose up --build        # neo4j + backend + frontend
-curl -X POST localhost:8000/ingest    # load the graph (once)
+docker compose up --build        # neo4j + backend + frontend; the graph self-seeds on first boot
 ```
+
+The backend seeds the graph automatically on first boot (idempotent — skipped once
+populated). To re-seed manually after editing `data/*.json`, `curl -X POST localhost:8000/ingest`.
 
 - **Dashboard:** http://localhost:5173
 - **API / OpenAPI docs:** http://localhost:8000/docs
@@ -113,7 +115,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 **Tests & evaluation:**
 ```bash
-docker compose exec backend pytest                 # 14 critical-path tests
+docker compose exec backend pytest                 # 23 critical-path tests
 docker compose exec backend python -m evaluation.run   # scored eval report
 ```
 
@@ -290,7 +292,7 @@ docs/      SCHEMA.md · DESIGN-NOTES.md
 Status: KG1+KG2 · deterministic safety · 3-pass resolution · two LangGraph crews ·
 streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz ·
 charts · clarify-before-generate · confidence-gated copilot routing · chat history
-+ images · grounded follow-ups · input-size guards · tests (14) · eval ·
++ images · grounded follow-ups · input-size guards · tests (23) · eval ·
 one-command Docker. Synthetic data only.
 
 ---
