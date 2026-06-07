@@ -111,10 +111,51 @@ def _deterministic_plan(cands: list[dict], counts: dict, stage: str) -> dict:
         by_bucket[_bucket(c.get("patterns", []))].append(c)
     plan = {"warmup": [], "main": [], "cooldown": []}
     used: set[str] = set()
-    for section in ("main", "warmup", "cooldown"):  # main first, it's the priority
-        pool = [c for c in by_bucket[section] if c["id"] not in used] or \
-               [c for c in cands if c["id"] not in used]
-        for c in pool[: counts[section]]:
+
+    def section_pool(section: str) -> list[dict]:
+        fallback = cands
+        if section == "cooldown":
+            # If true cooldown work is scarce, use unused warmup/mobility work
+            # before grabbing leftover strength lifts.
+            fallback = [*by_bucket["warmup"], *cands]
+        elif section == "warmup":
+            warmupish = [
+                c for c in cands
+                if any(
+                    token in " ".join(c.get("patterns", [])).lower()
+                    for token in ("cardio", "balance", "mobility", "regen", "yoga")
+                )
+            ]
+            fallback = [*warmupish, *cands]
+        seen: set[str] = set()
+        out = []
+        for c in [*by_bucket[section], *fallback]:
+            if c["id"] in used or c["id"] in seen:
+                continue
+            out.append(c)
+            seen.add(c["id"])
+        return out
+
+    for section in ("main", "cooldown", "warmup"):  # main first, then reserve cooldown
+        pool = section_pool(section)
+        target_count = counts[section]
+        down_rank_cap = 2 if section == "main" and stage == "at_risk" else target_count
+        down_rank_used = 0
+        deferred: list[dict] = []
+        for c in pool:
+            if len(plan[section]) >= target_count:
+                break
+            if c.get("down_rank") and down_rank_used >= down_rank_cap:
+                deferred.append(c)
+                continue
+            plan[section].append(_prescribe(c, section, stage))
+            used.add(c["id"])
+            down_rank_used += int(bool(c.get("down_rank")))
+        for c in deferred:
+            if len(plan[section]) >= target_count:
+                break
+            if c["id"] in used:
+                continue
             plan[section].append(_prescribe(c, section, stage))
             used.add(c["id"])
     return plan
@@ -328,11 +369,30 @@ def _resolve_exclude_terms(prompt: str, known: set[str]) -> list[str]:
     return sorted(terms)
 
 
+_LOWER_BODY_TERMS = ("lower body", "lower-body", "leg day", "legs")
+_LOWER_BODY_MUSCLES = {
+    "glutes", "hamstrings", "hip adductors", "hip flexors", "quads", "calves"
+}
+
+
 def _resolve_intent(prompt: str, muscle_surface: dict[str, str], patterns: list[str]) -> dict:
     pl = f" {prompt.lower()} "
-    tm = sorted({canon for surf, canon in muscle_surface.items()
-                 if surf in pl or f" {surf} " in pl})
-    tp = sorted({p for p in patterns if p in pl or p.split(" - ")[0] in pl})
+    tm = {canon for surf, canon in muscle_surface.items()
+          if surf in pl or f" {surf} " in pl}
+    tp = {p for p in patterns if p in pl or p.split(" - ")[0] in pl}
+    # "Lower-body" is a natural coach phrase, but the catalog names lower-body
+    # work as a mix of lower push/pull and legs accessory patterns. Expand it
+    # deterministically so a knee-protected lower-body request still stays in the
+    # requested training neighborhood instead of drifting into upper-body filler.
+    if any(term in pl for term in _LOWER_BODY_TERMS):
+        available = {name.lower(): name for name in set(muscle_surface.values())}
+        tm.update(available[m] for m in _LOWER_BODY_MUSCLES if m in available)
+        tp.update(
+            p for p in patterns
+            if p.startswith("lower ") or p.startswith("lower -") or p.startswith("legs -")
+        )
+    tm = sorted(tm)
+    tp = sorted(tp)
     return {"target_muscles": tm, "target_patterns": tp,
             "exclude_terms": [], "emphasis": "", "summary": prompt[:140]}
 
@@ -351,11 +411,12 @@ def retrieve(state: GenState) -> dict:
         cands = []
         for e in eligible:
             m = meta.get(e["id"], {})
-            boost = 0.1 * len(tm & set(m.get("muscles", []))) + 0.1 * len(tp & set(m.get("patterns", [])))
-            # Joint-loaders are kept but penalised so they sort to the bottom and
-            # are only chosen when the safe pool is thin. `down_rank` rides along
-            # (from safety.eligible) onto the candidate via the **e spread.
-            penalty = 0.5 if e.get("down_rank") else 0.0
+            boost = 0.35 * len(tm & set(m.get("muscles", []))) + \
+                0.45 * len(tp & set(m.get("patterns", [])))
+            # Joint-loaders are kept but penalised: a strong target match can
+            # still earn careful, badged inclusion, while generic knee-loading
+            # filler stays below cleaner options.
+            penalty = 0.35 if e.get("down_rank") else 0.0
             cands.append({**e, **m, "score": round(sem.get(e["id"], 0.0) + boost - penalty, 3)})
         cands.sort(key=lambda c: c["score"], reverse=True)
         trace.add("tool", "safety.eligible (graph)", eligible=len(safe_ids))

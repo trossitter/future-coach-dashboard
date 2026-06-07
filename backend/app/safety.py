@@ -1,10 +1,10 @@
 """Deterministic safety reasoning via graph traversal — NOT the LLM.
 
 Three graph-derived constraints, all decided by walking edges:
-  1. injury → joint, via the `part-of` hierarchy (sub-structures + regions count)
-  2. injury → contraindicated movement pattern (e.g. plyometrics)
-  3. equipment the member lacks
-Every exclusion is explainable by returning the path that justified it, and the
+  1. injury → joint, via the `part-of` hierarchy (admit but down-rank)
+  2. injury → contraindicated movement pattern (hard exclude, e.g. plyometrics)
+  3. equipment the member lacks (hard exclude)
+Every decision is explainable by returning the path that justified it, and the
 equipment-alternatives query recovers feasible swaps when something is filtered.
 """
 from __future__ import annotations

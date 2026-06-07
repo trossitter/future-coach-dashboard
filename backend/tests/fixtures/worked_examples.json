@@ -11,7 +11,9 @@
       "session_exclude_terms": ["deadlift"],
       "unsafe_min": 1,
       "equipment_min": 1,
-      "unsafe_name_tokens": ["lunge", "step", "jump"]
+      "unsafe_name_tokens": ["lunge", "step", "jump"],
+      "main_name_tokens": ["lunge", "hamstring"],
+      "main_down_rank_min": 2
     }
   },
   {

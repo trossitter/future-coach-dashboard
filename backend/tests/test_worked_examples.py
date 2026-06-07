@@ -79,6 +79,13 @@ def test_fixture_backed_demo_examples_stay_graph_safe(
         plan_names = " ".join(p["name"].lower() for p in plan)
         for term in case["expect"]["session_exclude_terms"]:
             assert term not in plan_names
+    if "main_name_tokens" in case["expect"]:
+        main_names = " ".join(p["name"].lower() for p in result["plan"]["main"])
+        for token in case["expect"]["main_name_tokens"]:
+            assert token in main_names
+    if "main_down_rank_min" in case["expect"]:
+        assert sum(bool(p.get("down_rank")) for p in result["plan"]["main"]) >= \
+            case["expect"]["main_down_rank_min"]
 
     summary = result["filtered_summary"]
     if "unsafe_exact" in case["expect"]:
@@ -105,4 +112,10 @@ def test_reader_visible_worked_examples_do_not_drift():
         "Missing docs/examples/worked-examples.json. Run "
         "python -m evaluation.worked_examples --write."
     )
-    assert worked_examples.OUTPUT_PATH.read_text() == worked_examples.render_examples()
+    assert worked_examples.README_PATH.exists(), (
+        "Missing docs/examples/README.md. Run "
+        "python -m evaluation.worked_examples --write."
+    )
+    payload = worked_examples.generate_examples()
+    assert worked_examples.OUTPUT_PATH.read_text() == worked_examples.render_examples(payload)
+    assert worked_examples.README_PATH.read_text() == worked_examples.render_readme(payload)
