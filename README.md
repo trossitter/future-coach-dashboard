@@ -243,9 +243,11 @@ Current coverage focuses on the critical paths:
   executed by
   [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
 - Reader-visible captures:
+  [`docs/examples/README.md`](docs/examples/README.md) summarizes the generated
+  examples, and
   [`docs/examples/worked-examples.json`](docs/examples/worked-examples.json)
-  contains the generated plans, filtered candidates, audit trace, and provenance.
-  It is checked by pytest; refresh it with
+  contains the full plans, filtered candidates, audit trace, and provenance.
+  Both are generated through `/generate` and checked by pytest; refresh with
   `docker compose exec backend python -m evaluation.worked_examples --write`.
 - Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
   recommendation safe-set membership across synthetic members.
@@ -267,10 +269,10 @@ Current coverage focuses on the critical paths:
 
 ## Trade-Offs
 
-- **Hard exclusion vs. down-ranking.** This implementation hard-excludes
-  exercises that load an injured joint. A production refinement could keep
-  non-contraindicated joint stress as a down-ranked option, but the conservative
-  choice is easier to defend for a safety-critical take-home.
+- **Hard exclusion vs. down-ranking.** Pattern contraindications remain hard
+  stops. Joint-only stress is admitted but down-ranked and badged in provenance,
+  so a request like "lower-body, protect the knee" can still return carefully
+  selected lower-body work instead of drifting away from the coach's target.
 - **Hand-written frontend types.** Backend contracts are Pydantic and OpenAPI
   exposed, but the frontend uses hand-written TypeScript shapes in places. The
   next hardening step is generated TS from the API contract.

@@ -19,6 +19,12 @@ type ProtocolLineStyle = CSSProperties & {
   "--line-blur": string;
 };
 
+type ProtocolCardStyle = CSSProperties & {
+  "--protocol-card-progress": number;
+  "--protocol-card-y": string;
+  "--protocol-card-blur": string;
+};
+
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -70,6 +76,13 @@ export function ProtocolsTeaser({ onClose }: ProtocolsTeaserProps) {
     "--line-blur": `${5 - lineProgress * 5}px`,
   });
 
+  const cardProgress = revealLine(progress, 0.96, 1);
+  const cardStyle: ProtocolCardStyle = {
+    "--protocol-card-progress": cardProgress,
+    "--protocol-card-y": `${34 - cardProgress * 34}px`,
+    "--protocol-card-blur": `${5 - cardProgress * 5}px`,
+  };
+
   return (
     <div className="protocols-page" role="dialog" aria-label="The handstand protocol">
       <button className="protocols-home" onClick={onClose}>
@@ -99,23 +112,19 @@ export function ProtocolsTeaser({ onClose }: ProtocolsTeaserProps) {
                   PROTOCOL
                 </span>
               </h1>
+              <div
+                className={`protocols-assign-card${cardProgress > 0.98 ? " is-visible" : ""}`}
+                style={cardStyle}
+              >
+                <div className="protocols-assign-kicker">Science-backed protocols</div>
+                <p>Adapt the Handstand protocol to any member, instantly, accurately, safely.</p>
+                <button className="protocols-assign-cta" onClick={onClose}>
+                  Assign
+                </button>
+              </div>
             </section>
           </div>
         </div>
-
-        <section className="protocols-outro" aria-label="Assign this protocol">
-          <div className="protocols-card">
-            <div className="eyebrow">COMING SOON</div>
-            <p className="protocols-card-copy">
-              Skill progressions, strength work, and coach judgment gathered into
-              one assignable protocol — adapt the Handstand, Brady, or Biles
-              protocol to any member, safely.
-            </p>
-            <button className="protocols-assign-cta" onClick={onClose}>
-              Assign to a member <span aria-hidden>→</span>
-            </button>
-          </div>
-        </section>
       </div>
     </div>
   );

@@ -1,13 +1,16 @@
 {
   "generated_by": "python -m evaluation.worked_examples --write",
+  "route": "POST /generate",
   "source_fixture": "backend/tests/fixtures/worked_examples.json",
-  "note": "Readable capture of the deterministic no-key path. The pytest suite checks this file against current graph behavior so it cannot silently drift.",
+  "note": "Readable capture of the deterministic no-key path. The pytest suite checks this file and README.md against current graph behavior so they cannot silently drift.",
   "examples": [
     {
       "name": "jordan_injury_limited_equipment",
-      "member_id": "mbr_01HX9JORDAN",
-      "prompt": "Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts",
-      "time_minutes": 45,
+      "request": {
+        "member_id": "mbr_01HX9JORDAN",
+        "prompt": "Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts",
+        "time_minutes": 45
+      },
       "fixture_expectations": {
         "journey_stage": "at_risk",
         "exclude_equipment": [
@@ -26,15 +29,34 @@
           "lunge",
           "step",
           "jump"
-        ]
+        ],
+        "main_name_tokens": [
+          "lunge",
+          "hamstring"
+        ],
+        "main_down_rank_min": 2
       },
       "generated": {
         "journey_stage": "at_risk",
         "intent": {
-          "target_muscles": [],
+          "target_muscles": [
+            "calves",
+            "glutes",
+            "hamstrings",
+            "hip adductors",
+            "hip flexors",
+            "quads"
+          ],
           "target_patterns": [
+            "legs - accessory",
             "lower - abduction",
-            "lower - adduction"
+            "lower - adduction",
+            "lower pull - hip lift",
+            "lower push - calf raise",
+            "lower push - lunge",
+            "lower push - split squat",
+            "lower push - squat",
+            "lower push - step-up"
           ],
           "exclude_terms": [
             "burpees",
@@ -64,13 +86,13 @@
         "plan": {
           "warmup": [
             {
-              "id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
-              "name": "Standing Neck Circles",
+              "id": "0a4d99cf-5075-468e-9551-b9f8efa267f1",
+              "name": "World's Greatest Stretch",
               "section": "warmup",
               "sets": 1,
               "reps": "8-10 reps",
               "rest_seconds": 20,
-              "down_rank": false
+              "down_rank": true
             },
             {
               "id": "1423ff58-68de-47da-8884-cb6f438f5774",
@@ -84,35 +106,35 @@
           ],
           "main": [
             {
+              "id": "00678525-7d38-4a9e-8998-a299a209c724",
+              "name": "Alternating Dumbbell Racked Crossback Lunge",
+              "section": "main",
+              "sets": 2,
+              "reps": "8-12 reps",
+              "rest_seconds": 60,
+              "down_rank": true
+            },
+            {
+              "id": "0732c6eb-2275-4af3-8276-9bb8be2aa12d",
+              "name": "One-Kettlebell Hamstring Walkout",
+              "section": "main",
+              "sets": 2,
+              "reps": "8-12 reps",
+              "rest_seconds": 60,
+              "down_rank": true
+            },
+            {
+              "id": "0a2dc786-fb42-4571-9b26-f58cdeb2c70e",
+              "name": "Bodyweight Pike",
+              "section": "main",
+              "sets": 2,
+              "reps": "8-12 reps",
+              "rest_seconds": 60,
+              "down_rank": false
+            },
+            {
               "id": "1465f189-eb62-410d-a73e-590a84693dd0",
               "name": "Dumbbell Neutral-Grip Bench Press",
-              "section": "main",
-              "sets": 2,
-              "reps": "8-12 reps",
-              "rest_seconds": 60,
-              "down_rank": false
-            },
-            {
-              "id": "0aa65232-8367-4622-b0ef-37e31626ba65",
-              "name": "Bench-Lying Single-Arm Dumbbell Tricep Extension",
-              "section": "main",
-              "sets": 2,
-              "reps": "8-12 reps",
-              "rest_seconds": 60,
-              "down_rank": false
-            },
-            {
-              "id": "00e18a26-70dd-4d43-b013-5038b75a41f3",
-              "name": "Alternating Low Plank To Low Side Plank",
-              "section": "main",
-              "sets": 2,
-              "reps": "8-12 reps",
-              "rest_seconds": 60,
-              "down_rank": false
-            },
-            {
-              "id": "03258dbf-bc21-4495-bcae-ca627b3a0f20",
-              "name": "Alternating Dumbbell Overhead Press",
               "section": "main",
               "sets": 2,
               "reps": "8-12 reps",
@@ -143,27 +165,68 @@
         },
         "provenance": [
           {
-            "exercise_id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
-            "name": "Standing Neck Circles",
+            "exercise_id": "0a4d99cf-5075-468e-9551-b9f8efa267f1",
+            "name": "World's Greatest Stretch",
             "chosen_because": [
-              "Rounds out the session"
+              "Targets hamstrings, hip flexors"
             ],
             "safe_because": [
-              "Works cervical spine, none of them injured",
               "mobility - dynamic, regen is cleared for their injuries",
-              "No equipment needed"
-            ]
+              "Uses Yoga Mat, all available",
+              "Loads the knee \u2014 included sparingly"
+            ],
+            "down_rank": true
           },
           {
             "exercise_id": "1423ff58-68de-47da-8884-cb6f438f5774",
             "name": "Walking Toe Touches",
             "chosen_because": [
-              "Rounds out the session"
+              "Targets hamstrings"
             ],
             "safe_because": [
               "Works lumbar spine, shoulder, hip, none of them injured",
               "mobility - dynamic is cleared for their injuries",
               "No equipment needed"
+            ]
+          },
+          {
+            "exercise_id": "00678525-7d38-4a9e-8998-a299a209c724",
+            "name": "Alternating Dumbbell Racked Crossback Lunge",
+            "chosen_because": [
+              "Targets glutes, hip adductors, quads",
+              "Matches the lower - abduction, lower - adduction, lower push - lunge work you asked for"
+            ],
+            "safe_because": [
+              "lower - adduction, lower - abduction, lower push - lunge is cleared for their injuries",
+              "Uses Dumbbell, all available",
+              "Loads the knee \u2014 included sparingly"
+            ],
+            "down_rank": true
+          },
+          {
+            "exercise_id": "0732c6eb-2275-4af3-8276-9bb8be2aa12d",
+            "name": "One-Kettlebell Hamstring Walkout",
+            "chosen_because": [
+              "Targets glutes, hamstrings",
+              "Matches the legs - accessory, lower pull - hip lift work you asked for"
+            ],
+            "safe_because": [
+              "legs - accessory, core - anti-rotation, lower pull - hip lift is cleared for their injuries",
+              "Uses Kettlebell, Yoga Mat, all available",
+              "Loads the knee \u2014 included sparingly"
+            ],
+            "down_rank": true
+          },
+          {
+            "exercise_id": "0a2dc786-fb42-4571-9b26-f58cdeb2c70e",
+            "name": "Bodyweight Pike",
+            "chosen_because": [
+              "Targets hip flexors"
+            ],
+            "safe_because": [
+              "Works hip, wrist, shoulder, none of them injured",
+              "core - anti-extension, core - flexion is cleared for their injuries",
+              "Uses Yoga Mat, all available"
             ]
           },
           {
@@ -176,42 +239,6 @@
               "Works shoulder, elbow, wrist, none of them injured",
               "upper push - horizontal is cleared for their injuries",
               "Uses Flat Bench, Dumbbell, all available"
-            ]
-          },
-          {
-            "exercise_id": "0aa65232-8367-4622-b0ef-37e31626ba65",
-            "name": "Bench-Lying Single-Arm Dumbbell Tricep Extension",
-            "chosen_because": [
-              "Rounds out the session"
-            ],
-            "safe_because": [
-              "Works elbow, shoulder, none of them injured",
-              "arms - accessory is cleared for their injuries",
-              "Uses Dumbbell, Flat Bench, all available"
-            ]
-          },
-          {
-            "exercise_id": "00e18a26-70dd-4d43-b013-5038b75a41f3",
-            "name": "Alternating Low Plank To Low Side Plank",
-            "chosen_because": [
-              "Rounds out the session"
-            ],
-            "safe_because": [
-              "Works shoulder, elbow, none of them injured",
-              "core - anti-extension, core - anti-lateral flexion is cleared for their injuries",
-              "Uses Yoga Mat, all available"
-            ]
-          },
-          {
-            "exercise_id": "03258dbf-bc21-4495-bcae-ca627b3a0f20",
-            "name": "Alternating Dumbbell Overhead Press",
-            "chosen_because": [
-              "Rounds out the session"
-            ],
-            "safe_because": [
-              "Works elbow, shoulder, none of them injured",
-              "upper push - vertical is cleared for their injuries",
-              "Uses Dumbbell, all available"
             ]
           },
           {
@@ -241,25 +268,6 @@
           }
         ],
         "filtered_out": [
-          {
-            "id": "0b3178cf-bf89-45a3-bfb0-27310ef6ef38",
-            "name": "Barbell Decline Bench Press",
-            "reasons": [
-              {
-                "type": "equipment",
-                "via": [
-                  "Adjustable Bench - Decline",
-                  "Barbell",
-                  "Plate",
-                  "Rack"
-                ]
-              }
-            ],
-            "alternatives": [
-              "Dumbbell Neutral-Grip Bench Press",
-              "Push-Up to Knee-Drive"
-            ]
-          },
           {
             "id": "03ba2166-a5e6-4d0d-9110-ab5b73acdd50",
             "name": "BOSU Step Over",
@@ -320,6 +328,19 @@
               "Alternating Dumbbell Overhead Press",
               "Alternating Low Plank To Low Side Plank"
             ]
+          },
+          {
+            "id": "01ff62bc-e887-49e4-9cc8-bcd367b34cfd",
+            "name": "Static Jump",
+            "reasons": [
+              {
+                "type": "pattern",
+                "via": [
+                  "cardio - plyometric"
+                ]
+              }
+            ],
+            "alternatives": []
           }
         ],
         "audit_trace": [
@@ -394,9 +415,11 @@
     },
     {
       "name": "duncan_limited_equipment_no_injury",
-      "member_id": "mbr_duncan",
-      "prompt": "Full-body strength, only dumbbells and a kettlebell, no barbell, no machines",
-      "time_minutes": 45,
+      "request": {
+        "member_id": "mbr_duncan",
+        "prompt": "Full-body strength, only dumbbells and a kettlebell, no barbell, no machines",
+        "time_minutes": 45
+      },
       "fixture_expectations": {
         "journey_stage": "progressing",
         "exclude_equipment": [
@@ -437,8 +460,8 @@
         "plan": {
           "warmup": [
             {
-              "id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
-              "name": "Standing Neck Circles",
+              "id": "1423ff58-68de-47da-8884-cb6f438f5774",
+              "name": "Walking Toe Touches",
               "section": "warmup",
               "sets": 1,
               "reps": "8-10 reps",
@@ -446,8 +469,8 @@
               "down_rank": false
             },
             {
-              "id": "0b1250ab-ac21-42a3-8aff-87f75e85eea0",
-              "name": "Bench-Supported Incline YTI",
+              "id": "10336de1-5994-4074-aa52-9b1b28d845a3",
+              "name": "Jump Rope - Single-Leg",
               "section": "warmup",
               "sets": 1,
               "reps": "8-10 reps",
@@ -495,8 +518,8 @@
           ],
           "cooldown": [
             {
-              "id": "02fe4cf5-bb21-4bef-868f-fea1477e2a53",
-              "name": "Dumbbell Goblet Split Squat",
+              "id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
+              "name": "Standing Neck Circles",
               "section": "cooldown",
               "sets": 1,
               "reps": "30-45s hold",
@@ -504,8 +527,8 @@
               "down_rank": false
             },
             {
-              "id": "00678525-7d38-4a9e-8998-a299a209c724",
-              "name": "Alternating Dumbbell Racked Crossback Lunge",
+              "id": "0b1250ab-ac21-42a3-8aff-87f75e85eea0",
+              "name": "Bench-Supported Incline YTI",
               "section": "cooldown",
               "sets": 1,
               "reps": "30-45s hold",
@@ -516,27 +539,27 @@
         },
         "provenance": [
           {
-            "exercise_id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
-            "name": "Standing Neck Circles",
+            "exercise_id": "1423ff58-68de-47da-8884-cb6f438f5774",
+            "name": "Walking Toe Touches",
             "chosen_because": [
               "Rounds out the session"
             ],
             "safe_because": [
-              "Works cervical spine, none of them injured",
-              "mobility - dynamic, regen is cleared for their injuries",
+              "Works lumbar spine, shoulder, hip, none of them injured",
+              "mobility - dynamic is cleared for their injuries",
               "No equipment needed"
             ]
           },
           {
-            "exercise_id": "0b1250ab-ac21-42a3-8aff-87f75e85eea0",
-            "name": "Bench-Supported Incline YTI",
+            "exercise_id": "10336de1-5994-4074-aa52-9b1b28d845a3",
+            "name": "Jump Rope - Single-Leg",
             "chosen_because": [
               "Rounds out the session"
             ],
             "safe_because": [
-              "Works shoulder, cervical spine, none of them injured",
-              "mobility - dynamic, shoulders - accessory, core - extension, balance is cleared for their injuries",
-              "Uses Adjustable Bench - Incline, all available"
+              "Works ankle, none of them injured",
+              "cardio, cardio - plyometric is cleared for their injuries",
+              "Uses Jump Rope, all available"
             ]
           },
           {
@@ -588,27 +611,27 @@
             ]
           },
           {
-            "exercise_id": "02fe4cf5-bb21-4bef-868f-fea1477e2a53",
-            "name": "Dumbbell Goblet Split Squat",
+            "exercise_id": "0b5f275e-db72-4dd7-8949-30d737fb14fc",
+            "name": "Standing Neck Circles",
             "chosen_because": [
               "Rounds out the session"
             ],
             "safe_because": [
-              "Works ankle, knee, hip, none of them injured",
-              "lower push - split squat is cleared for their injuries",
-              "Uses Dumbbell, all available"
+              "Works cervical spine, none of them injured",
+              "mobility - dynamic, regen is cleared for their injuries",
+              "No equipment needed"
             ]
           },
           {
-            "exercise_id": "00678525-7d38-4a9e-8998-a299a209c724",
-            "name": "Alternating Dumbbell Racked Crossback Lunge",
+            "exercise_id": "0b1250ab-ac21-42a3-8aff-87f75e85eea0",
+            "name": "Bench-Supported Incline YTI",
             "chosen_because": [
               "Rounds out the session"
             ],
             "safe_because": [
-              "Works hip, knee, ankle, none of them injured",
-              "lower - adduction, lower - abduction, lower push - lunge is cleared for their injuries",
-              "Uses Dumbbell, all available"
+              "Works shoulder, cervical spine, none of them injured",
+              "mobility - dynamic, shoulders - accessory, core - extension, balance is cleared for their injuries",
+              "Uses Adjustable Bench - Incline, all available"
             ]
           }
         ],

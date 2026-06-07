@@ -476,6 +476,60 @@ button:hover:not(:disabled) { opacity: 0.86; }
   filter: blur(var(--line-blur));
   will-change: opacity, transform, filter;
 }
+.protocols-assign-card {
+  position: absolute;
+  left: 66%;
+  top: calc(50% + clamp(126px, 16.5vw, 216px));
+  width: min(430px, calc(100vw - 40px));
+  padding: 14px 20px 16px;
+  text-align: center;
+  color: var(--ink);
+  background: rgba(237, 238, 241, 0.68);
+  border: 1px solid rgba(124, 47, 61, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 28px 70px -46px rgba(22, 22, 26, 0.56);
+  opacity: var(--protocol-card-progress);
+  transform: translate(-50%, var(--protocol-card-y));
+  filter: blur(var(--protocol-card-blur));
+  pointer-events: none;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  will-change: opacity, transform, filter;
+}
+.protocols-assign-card.is-visible {
+  pointer-events: auto;
+}
+.protocols-assign-kicker {
+  margin-bottom: 6px;
+  color: var(--blue);
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.protocols-assign-card p {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-size: clamp(17px, 1.75vw, 20px);
+  line-height: 1.24;
+  letter-spacing: 0;
+}
+.protocols-assign-cta {
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue);
+  border-radius: 999px;
+  padding: 9px 22px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.protocols-assign-cta:hover:not(:disabled) {
+  opacity: 0.88;
+}
 /* the bottom hint that opens it — a quiet, deliberate link (not a scroll target) */
 .protocols-hint {
   position: relative; z-index: 0;
@@ -484,29 +538,6 @@ button:hover:not(:disabled) { opacity: 0.86; }
   cursor: pointer; padding: 6px;
 }
 .protocols-hint:hover:not(:disabled) { opacity: 0.7; }
-/* restored: the assignable-protocol card + "Assign to a member" CTA, as a closing
-   panel below the scroll-revealed title (the scene above is untouched). */
-.protocols-outro {
-  position: relative; z-index: 1;
-  min-height: 88vh; display: flex; align-items: center; justify-content: center;
-  padding: 64px clamp(20px, 8vw, 120px) 120px; background: var(--bg);
-}
-.protocols-card {
-  max-width: 520px; text-align: center;
-  background: rgba(255, 255, 255, 0.62); border: 1px solid var(--hair);
-  border-radius: 16px; padding: 40px 36px;
-}
-.protocols-card .eyebrow { margin-bottom: 16px; }
-.protocols-card-copy {
-  font-family: var(--serif); font-size: clamp(20px, 2.4vw, 26px); line-height: 1.5;
-  color: var(--ink); margin: 0 0 28px;
-}
-.protocols-assign-cta {
-  background: var(--blue); color: #fff; border: 1px solid var(--blue);
-  border-radius: 999px; padding: 11px 22px; cursor: pointer;
-  font-family: var(--sans); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
-}
-.protocols-assign-cta:hover:not(:disabled) { opacity: 0.88; }
 
 /* coach overview — member roster (the landing) */
 .section-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub); margin-bottom: 18px; }
@@ -594,5 +625,8 @@ button:hover:not(:disabled) { opacity: 0.86; }
   .protocols-title-stage h1 {
     max-width: min(96vw, 620px);
     font-size: clamp(66px, 13vw, 92px);
+  }
+  .protocols-assign-card {
+    left: 50%;
   }
 }
