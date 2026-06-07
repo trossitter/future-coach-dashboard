@@ -1,4 +1,4 @@
-"""Fixture-backed worked examples from the README.
+"""Fixture-backed demo examples.
 
 These are the demo cases a grader is likely to try. The assertions stay at the
 contract/invariant level so the examples remain stable even if ranking changes:
@@ -30,7 +30,10 @@ def _plan_items(result: dict) -> list[dict]:
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
-def test_readme_worked_examples_stay_graph_safe(case: dict, monkeypatch: pytest.MonkeyPatch):
+def test_fixture_backed_demo_examples_stay_graph_safe(
+    case: dict,
+    monkeypatch: pytest.MonkeyPatch,
+):
     # Keep the examples deterministic even if a developer has an API key locally.
     monkeypatch.setattr(gen.llm, "is_available", lambda: False)
 

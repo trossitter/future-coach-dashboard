@@ -198,53 +198,6 @@ More: [`docs/DESIGN-NOTES.md`](docs/DESIGN-NOTES.md).
 
 ---
 
-## Worked Examples
-
-The exact prompts are fixture-backed in
-[`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
-and executed by
-[`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
-
-Jordan is the provided rich member. The extra synthetic Dune members are
-counterfactual fixtures: Duncan has no injury, Alia is over-constrained, and Paul
-is a cold start, so the same graph can be tested against different member states.
-
-**1. Jordan Rivera - injury + limited equipment**
-
-Prompt:
-
-```text
-Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts
-```
-
-Expected behavior:
-
-- Journey stage: `at_risk`, so volume stays conservative.
-- `deadlift` is parsed as a session exclusion.
-- `Barbell` is session-excluded; `Dumbbell` and `Kettlebell` are allowed.
-- Knee-loading and contraindicated-pattern exercises are filtered.
-- Equipment-only removals include barbell work.
-- Every prescribed exercise has provenance and belongs to the safe pool.
-
-**2. Duncan Idaho - limited equipment, no injury**
-
-Prompt:
-
-```text
-Full-body strength, only dumbbells and a kettlebell, no barbell, no machines
-```
-
-Expected behavior:
-
-- No injury contraindications are active.
-- Barbell/machine work is filtered for equipment only.
-- Movements that Jordan loses for knee safety remain available if equipment fits.
-
-This contrast is the proof that safety comes from member graph state, not from
-generic caution in a prompt.
-
----
-
 ## Tests And Evaluation
 
 ```bash
@@ -260,7 +213,10 @@ Current coverage focuses on the critical paths:
   pattern contraindications, equipment feasibility, safe alternatives.
 - Interactive adjustment: deadlift exclusion, equipment polarity, clarify gates,
   requested-but-filtered acknowledgement.
-- Worked examples: README/demo prompts remain graph-safe and provenance-backed.
+- Fixture-backed demo cases:
+  [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
+  executed by
+  [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
 - Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
   recommendation safe-set membership across synthetic members.
 
