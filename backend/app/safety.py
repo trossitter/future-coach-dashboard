@@ -96,21 +96,31 @@ def eligible(member_id: str, *, muscle: str | None = None,
              exclude_terms: list[str] | None = None,
              avoid_joints: list[str] | None = None,
              exclude_equipment: list[str] | None = None,
-             extra_equipment: list[str] | None = None) -> list[dict]:
+             extra_equipment: list[str] | None = None,
+             bodyweight_only: bool = False) -> list[dict]:
     """Exercises that are injury-safe, pattern-safe, and equipment-feasible —
     optionally narrowed to a muscle/pattern, minus excluded name terms, minus
     any joints the coach confirmed to avoid this session (clarify loop), and with
     session equipment overrides ($extra_equipment available, $exclude_equipment
-    unavailable)."""
+    unavailable).
+
+    `bodyweight_only` is the blanket "no equipment / bodyweight only" constraint:
+    unlike the per-item $exclude_equipment list (which names specific kit), it
+    removes EVERY exercise that requires any equipment at all. This is the
+    structured form a generic "no equipment" phrase resolves to — a real intent,
+    not an empty exclusion list that silently filters nothing."""
     # INJURY_JOINT_UNSAFE is NO LONGER a hard exclude — a stored-injury joint
     # loader is admitted but flagged `down_rank` (same part-of EXISTS, reused as a
     # RETURN expression) so callers can keep it and sort it to the bottom. Pattern,
     # equipment, this-session avoidance and name terms still HARD-exclude.
+    bodyweight = "AND NOT EXISTS { MATCH (ex)-[:REQUIRES]->(:Equipment) }" \
+        if bodyweight_only else ""
     q = f"""
         MATCH (ex:Exercise)
         WHERE NOT {INJURY_PATTERN_UNSAFE}
           AND NOT {EQUIP_INFEASIBLE}
           AND NOT {AVOID_JOINT_UNSAFE}
+          {bodyweight}
           AND ($muscle IS NULL OR (ex)-[:TARGETS]->(:Muscle {{name: $muscle}}))
           AND ($pattern IS NULL OR (ex)-[:HAS_PATTERN]->(:MovementPattern {{name: $pattern}}))
           AND ($terms IS NULL OR NOT ANY(t IN $terms WHERE toLower(ex.name) CONTAINS t))
