@@ -49,7 +49,7 @@ flowchart TB
     VEC[["Native vector indexes<br/>exercises + chat"]]
   end
 
-  LLM["Claude Haiku by default<br/>phrasing + structured output only"]
+  LLM["LLM provider<br/>Anthropic Haiku default / Qwen fallback<br/>phrasing + structuring only"]
   ONT["SKOS · SNOMED CT · PROV-O · OPE/COPPER alignment"]
   SEED["data/*.json<br/>synthetic seed data"]
 
@@ -70,8 +70,6 @@ flowchart TB
 **Neo4j is the source of truth.** Exercises, injuries, equipment, sleep,
 adherence, chat, labs, and provenance are read from the graph at request time.
 The JSON files in `data/` are seeds, not runtime truth.
-  LLM["LLM provider<br/>Anthropic Haiku default / Qwen fallback<br/>phrasing + structuring only"]
-  GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
 
 **Vectors are a fallback.** They improve recall for messy language and chat
 retrieval, but they never decide safety.
@@ -80,30 +78,53 @@ retrieval, but they never decide safety.
 
 ## Run It
 
-Requires Docker with Compose v2.
+Requires Docker with Compose v2. No local Python, Node, or Neo4j install is
+needed.
 
 ```bash
 docker compose up --build
 ```
 
-The backend seeds Neo4j automatically on first boot. Re-seed manually after
-editing `data/*.json` with:
-
-```bash
-curl -X POST localhost:8000/ingest
-```
+That one command starts Neo4j, the FastAPI backend, and the Vite frontend. On
+first boot, the backend warms the embedding model and seeds Neo4j automatically
+from `data/*.json`. The first run can take a few minutes because Docker installs
+dependencies and downloads the ONNX embedding model.
 
 - Dashboard: http://localhost:5173
 - API docs: http://localhost:8000/docs
 - Neo4j Browser: http://localhost:7474 (`neo4j` / `futurepassword`)
 
-The LLM is optional. Without `ANTHROPIC_API_KEY`, the graph-safe plan and
-grounded copilot context still work; only narration is omitted.
+If the dashboard opens before seeding finishes, wait for the backend to print
+`Application startup complete` and refresh. If you edited seed data and want to
+force a re-ingest:
+
+```bash
+curl -X POST localhost:8000/ingest
+```
+
+No `.env` file is required for the core demo. Without an LLM key, graph-safe
+plans, provenance, filtered exercises, charts, and retrieved copilot context
+still work; only streamed narration/LLM-routed phrasing is omitted.
 
 ```env
+LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-...
-# CLAUDE_MODEL=claude-haiku-4-5
+CLAUDE_MODEL=claude-haiku-4-5
 ```
+
+Venice/Qwen is available as an explicit OpenAI-compatible fallback:
+
+```env
+LLM_PROVIDER=venice
+VENICE_API_KEY=...
+LLM_BASE_URL=https://api.venice.ai/api/v1
+MODEL_INTENT=qwen3-next-80b
+MODEL_NARRATE=qwen3-next-80b
+MODEL_COPILOT=qwen3-next-80b
+```
+
+If ports `5173`, `8000`, `7474`, or `7687` are already in use, stop the process
+using that port or adjust `docker-compose.yml`.
 
 ---
 
@@ -127,34 +148,6 @@ The UI then lets the coach reorder, remove, add only from the safe pool, add cue
 and send the final plan.
 
 **Surface B - Coach AI Copilot**
-The LLM is **optional** — without a key the system still generates safe plans and
-grounded answers through the graph, just without streamed natural-language
-narration. Anthropic Haiku is the default provider because this path keeps prompt
-caching and is stable for the light phrasing/structuring work:
-
-```
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
-CLAUDE_MODEL=claude-haiku-4-5
-```
-
-Venice/Qwen remains available as an explicit OpenAI-compatible fallback behind
-the same interface:
-
-```
-LLM_PROVIDER=venice
-VENICE_API_KEY=...
-LLM_BASE_URL=https://api.venice.ai/api/v1
-MODEL_INTENT=qwen3-next-80b
-MODEL_NARRATE=qwen3-next-80b
-MODEL_COPILOT=qwen3-next-80b
-```
-
-The model is deliberately right-sized: the graph owns safety, eligibility,
-retrieval, and provenance; the provider only phrases narration and returns small
-structured routing/planning objects.
-
-> First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
 
 The copilot retrieves over KG2: profile, goals, injuries, adherence, sleep,
 Oura-style wearable readings, labs, DEXA, workout history, chat, coach brief, and
@@ -225,30 +218,6 @@ The grounding is intentionally small and load-bearing.
 | COPPER | Personalization/journey-stage framing from adherence and churn. | Lifestyle ontology classes outside this catalog's granularity. |
 
 More: [`docs/DESIGN-NOTES.md`](docs/DESIGN-NOTES.md).
-
----
-
-## Worked Examples
-
-Two scenarios — both **fixture-backed and asserted in CI** so they can't quietly
-rot: [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py)
-runs them against [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json).
-
-**1 · Injury + limited equipment — Jordan Rivera** (recovering left knee, no barbell)
-
-> *"Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts."*
-
-- **Parsed deterministically:** equipment → drop `Barbell`, keep `Dumbbell` + `Kettlebell`; name-exclude `deadlift`; journey stage `at_risk` (lower volume).
-- **Filtered by the graph (not the prompt):** knee-loading and plyometric work — lunges, step-ups, jumps — is excluded via the `part-of` + `contraindicated` traversal; barbell-only lifts are dropped and **auto-substituted** with equipment-valid equivalents.
-- **Down-ranked, not dropped:** a knee-*stressing* but not *contraindicated* move can still appear — ranked last and badged "used sparingly."
-- **Invariant:** 0 prescribed exercises are contraindicated, none need a barbell, and no deadlift appears.
-
-**2 · Limited equipment, no injury — Duncan Idaho**
-
-> *"Full-body strength, only dumbbells and a kettlebell, no barbell, no machines."*
-
-- Equipment → drop `Barbell`, keep `Dumbbell` + `Kettlebell`; journey stage `progressing`.
-- **The contrast that proves safety is data-driven:** with no injury on file, the *same* split-squats, lunges, and jumps that were excluded for Jordan are now **admitted** — nothing in the prompt changed the safety logic; the member's injury graph did. Barbell/machine work is still dropped and substituted.
 
 ---
 
