@@ -12,6 +12,7 @@ dependencies = [
     "rapidfuzz>=3.9",
     "fastembed>=0.3",
     "anthropic>=0.40",
+    "openai>=1.55",
     "langgraph>=0.2",
 ]
 
