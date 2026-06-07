@@ -145,9 +145,12 @@ def deliver(member_id: str, body: dict = Body(default={})) -> dict:
         """
         MATCH (m:Member {id: $mid})
         CREATE (m)-[:RECEIVED_PLAN]->(:DeliveredPlan {
-            created: datetime(), exercise_count: $n, summary: $summary})
+            created: datetime(), exercise_count: $n, summary: $summary,
+            message: $message})
         """,
         mid=member_id, n=len(ids), summary=(body.get("summary") or "")[:200],
+        # the coach-authored (possibly hand-edited) note that rides to the member
+        message=(body.get("message") or "")[:1000],
     )
     return {"delivered": True, "exercise_count": len(ids)}
 

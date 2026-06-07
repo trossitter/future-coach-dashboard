@@ -108,3 +108,28 @@ def test_exclude_term_removes_named_exercises_from_eligible():
     filtered = [e["name"] for e in safety.eligible(JORDAN, exclude_terms=[token])]
     assert all(token not in n.lower() for n in filtered)
     assert len(filtered) < len(base)
+
+
+# --- requested-but-filtered acknowledgment -----------------------------------
+
+def test_requested_but_filtered_flags_a_named_unsafe_exercise():
+    """A coach naming an exercise the graph filters gets an explicit ack with a
+    reason — not a silent drop. Jordan (left knee) + jumping jacks => flagged."""
+    from app.agents import generation as gen
+    safe = [e["id"] for e in safety.eligible(JORDAN)]
+    ru = gen._requested_but_filtered(
+        JORDAN, "full body workout with jumping jacks",
+        {"exclude_equipment": [], "extra_equipment": []}, [], safe)
+    assert ru, "expected jumping jacks to be flagged as requested-but-filtered"
+    assert any("jump" in r["name"].lower() for r in ru)
+    assert all(r["reason"] for r in ru)
+
+
+def test_requested_but_filtered_silent_when_request_is_satisfiable():
+    """A healthy member who CAN do the named move gets nothing flagged."""
+    from app.agents import generation as gen
+    safe = [e["id"] for e in safety.eligible("mbr_duncan")]
+    ru = gen._requested_but_filtered(
+        "mbr_duncan", "full body workout with jumping jacks",
+        {"exclude_equipment": [], "extra_equipment": []}, [], safe)
+    assert ru == []

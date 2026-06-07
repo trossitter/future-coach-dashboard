@@ -5,6 +5,21 @@ import { BodyThumb, regionForExercise } from "./BodyThumb";
 
 type SectionKey = "warmup" | "main" | "cooldown";
 
+// The narration is prose, but the LLM occasionally slips a markdown plan dump on
+// the end ("**Warmup** - …"). The plan is shown separately, so cut anything from
+// a bold section header onward, then strip stray markdown — belt to the prompt's
+// suspenders, so a slip never renders raw asterisks (and the edit box stays clean).
+const cleanNarration = (t: string) =>
+  (t || "")
+    .split(/\s*\*\*\s*(?:warm-?up|main|cool-?down)\b/i)[0]
+    .replace(/\*+/g, "")
+    .replace(/_{2,}/g, "")
+    .replace(/`+/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
 // defaults applied to a pool item promoted into a prescription — section-aware
 // so an added warmup reads as a warmup, a cooldown as a hold, etc.
 const ADD_DEFAULTS: Record<SectionKey, { sets: number; reps: string; rest_seconds: number }> = {
@@ -160,6 +175,9 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
   const [result, setResult] = useState<any>(null);
   const [trace, setTrace] = useState<any[]>([]);
   const [narration, setNarration] = useState("");
+  // the coach can hand-edit the member-facing note; null ⇒ use the generated one.
+  const [editedNarration, setEditedNarration] = useState<string | null>(null);
+  const [editingNarration, setEditingNarration] = useState(false);
   const [show, setShow] = useState<string | null>(null);
   // ad-hoc, this-session joint constraints resolved via the clarify loop
   const [clarify, setClarify] = useState<any>(null);
@@ -190,6 +208,7 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
     exclude = excludeEquip, extra = extraEquip,
   ) {
     setLoading(true); setResult(null); setNarration(""); setTrace([]); setClarify(null); setSent(false);
+    setEditedNarration(null); setEditingNarration(false);   // discard prior note edits
     await postSSE("/generate/stream",
       { member_id: memberId, prompt, time_minutes: time,
         avoid_joints: avoid, ignore_joints: ignore,
@@ -236,6 +255,9 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
   // the plan the coach actually sees and acts on: their local edits if any,
   // otherwise the freshly generated plan straight from the backend.
   const displayedPlan = editedPlan ?? result?.plan;
+  // the member-facing note the coach actually sends: their edit if any, else the
+  // generated narration as it streams in.
+  const displayedNarration = editedNarration ?? cleanNarration(narration);
 
   // ids already placed anywhere in the displayed plan — used to dedupe the
   // add-picker so the same exercise can't be added twice.
@@ -306,7 +328,8 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
       .flatMap((s) => displayedPlan[s] || []);
     const ids = all.map((p: any) => p.id);
     const notes = all.filter((p: any) => p.note).map((p: any) => ({ name: p.name, note: p.note }));
-    await postJSON(`/members/${memberId}/deliver`, { exercise_ids: ids, notes, summary: prompt });
+    await postJSON(`/members/${memberId}/deliver`,
+      { exercise_ids: ids, notes, summary: prompt, message: displayedNarration });
     setSent(true);
   }
 
@@ -448,11 +471,47 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
         </div>
       )}
 
-      {narration && <div className="narration">{narration}</div>}
+      {editingNarration ? (
+        <textarea
+          className="narration narration-edit"
+          autoFocus
+          rows={3}
+          defaultValue={displayedNarration}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === "Escape") { setEditingNarration(false); }   // cancel, keep prior
+          }}
+          onBlur={(e) => { setEditedNarration(e.currentTarget.value.trim()); setEditingNarration(false); }}
+        />
+      ) : displayedNarration ? (
+        <div
+          className="narration narration-editable"
+          title="Click to edit the note that goes to the member"
+          onClick={() => !loading && setEditingNarration(true)}
+        >
+          {displayedNarration}
+          {editedNarration !== null && <span className="narration-edited">edited</span>}
+          {!loading && <span className="narration-hint">✎ click to edit</span>}
+        </div>
+      ) : null}
 
       {result?.intent?.session_exclude_terms?.length > 0 && (
         <div className="muted constraint-note">
           Excluding by name: {result.intent.session_exclude_terms.join(", ")} — no matching exercise appears.
+        </div>
+      )}
+
+      {result?.requested_unavailable?.length > 0 && (
+        <div className="requested-note">
+          {result.requested_unavailable.map((r: any, i: number) => (
+            <div key={i} className="requested-row">
+              <span className="requested-tag">Couldn’t include</span>
+              <span>
+                <b>{r.name}</b> — {r.reason}.
+                {r.alternative ? <> Safe swap: <b>{r.alternative}</b>.</> : null}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
