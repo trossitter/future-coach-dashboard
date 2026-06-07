@@ -533,7 +533,10 @@ NARRATOR_SYSTEM = (
     "never invent one, and only name a removed exercise if it's in "
     "`filtered_for_safety`. No invented anatomy ('flexion', 'rotation', 'instability'). "
     "NEVER list everything that was removed. Skip empty filler ('building resilience', "
-    "'respects where you are in your journey'). No preamble, no markdown."
+    "'respects where you are in your journey'). "
+    "OUTPUT PROSE ONLY — flowing sentences. Do NOT reproduce the workout plan or its "
+    "warmup/main/cooldown sections (it's shown separately), and use NO headings, NO "
+    "bullet or numbered lists, NO asterisks/markdown, NO preamble."
 )
 
 

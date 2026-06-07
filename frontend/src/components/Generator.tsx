@@ -5,6 +5,21 @@ import { BodyThumb, regionForExercise } from "./BodyThumb";
 
 type SectionKey = "warmup" | "main" | "cooldown";
 
+// The narration is prose, but the LLM occasionally slips a markdown plan dump on
+// the end ("**Warmup** - …"). The plan is shown separately, so cut anything from
+// a bold section header onward, then strip stray markdown — belt to the prompt's
+// suspenders, so a slip never renders raw asterisks (and the edit box stays clean).
+const cleanNarration = (t: string) =>
+  (t || "")
+    .split(/\s*\*\*\s*(?:warm-?up|main|cool-?down)\b/i)[0]
+    .replace(/\*+/g, "")
+    .replace(/_{2,}/g, "")
+    .replace(/`+/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
 // defaults applied to a pool item promoted into a prescription — section-aware
 // so an added warmup reads as a warmup, a cooldown as a hold, etc.
 const ADD_DEFAULTS: Record<SectionKey, { sets: number; reps: string; rest_seconds: number }> = {
@@ -242,7 +257,7 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
   const displayedPlan = editedPlan ?? result?.plan;
   // the member-facing note the coach actually sends: their edit if any, else the
   // generated narration as it streams in.
-  const displayedNarration = editedNarration ?? narration;
+  const displayedNarration = editedNarration ?? cleanNarration(narration);
 
   // ids already placed anywhere in the displayed plan — used to dedupe the
   // add-picker so the same exercise can't be added twice.
