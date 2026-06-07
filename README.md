@@ -123,8 +123,6 @@ MODEL_NARRATE=qwen3-next-80b
 MODEL_COPILOT=qwen3-next-80b
 ```
 
-If ports `5173`, `8000`, `7474`, or `7687` are already in use, stop the process
-using that port or adjust `docker-compose.yml`.
 
 ---
 
