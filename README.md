@@ -36,7 +36,7 @@ flowchart TB
   SEED["data/*.json seed<br/>ingested once via graph/ingest.py"]
   SEED -.->|"POST /ingest"| KG
 
-  LLM["Claude (Haiku) - phrasing and structuring only"]
+  LLM["LLM provider<br/>Venice default / Claude fallback<br/>phrasing + structuring only"]
   GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
 
   A -->|SSE| G --> SAFE --> KG
@@ -103,13 +103,31 @@ populated). To re-seed manually after editing `data/*.json`, `curl -X POST local
 - **Neo4j browser:** http://localhost:7474 (`neo4j` / `futurepassword`)
 
 The LLM is **optional** — without a key the system still generates safe plans and
-grounded answers (deterministic), just without natural-language narration. To
-enable Claude, drop a key in `knowledge-graph/.env` (gitignored):
+grounded answers through the graph, just without streamed natural-language
+narration. To enable narration and structured intent routing, drop a provider key
+in `knowledge-graph/.env` (gitignored):
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-# CLAUDE_MODEL=claude-haiku-4-5   # default; opus-4-8 / sonnet-4-6 for more polish
+LLM_PROVIDER=venice
+VENICE_API_KEY=...
+LLM_BASE_URL=https://api.venice.ai/api/v1
+MODEL_INTENT=qwen3-next-80b
+MODEL_NARRATE=qwen3-next-80b
+MODEL_COPILOT=qwen3-next-80b
 ```
+
+Claude is a drop-in fallback behind the same interface:
+
+```
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-haiku-4-5
+```
+
+The model is deliberately right-sized: the graph owns safety, eligibility,
+retrieval, and provenance; the provider only phrases narration and returns small
+structured routing/planning objects. The default Venice path is OpenAI-compatible
+and keeps the project privacy-preserving by avoiding model-hosted domain logic.
 
 > First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
 
@@ -168,7 +186,7 @@ Full node/edge contract: [`docs/SCHEMA.md`](docs/SCHEMA.md).
 | **Neo4j (labeled property graph)** | Spec-preferred; the safety question *is* a traversal. One DB holds both subgraphs **and** native vector indexes, so GraphRAG's structural + semantic halves live together. |
 | **Deterministic safety, LLM-for-phrasing** | The graded promise is safety *from the graph, not the prompt*. The safety-reviewer validates every prescribed id ∈ the graph-derived safe set; the LLM cannot introduce an unsafe exercise (prompt-injection can't move it either). |
 | **LangGraph multi-agent crews** | Typed-state `StateGraph`s with explicit edges and a critic loop — the agentic workflow the brief asks for, with safety as a hard gate, not a probabilistic hope. |
-| **Claude Haiku (default)** | *Because* reasoning lives in the graph, the LLM only does light structuring + phrasing — the fastest/cheapest tier fits, serving the <5 s and token-efficiency targets. Configurable up to Opus. |
+| **Venice default; Claude fallback** | Privacy-preserving and right-sized: the graph does safety/reasoning, so the LLM only handles light structuring + phrasing. Venice uses the OpenAI-compatible path (`qwen3-next-80b` per role by default); Claude remains a one-env-var fallback. |
 | **fastembed (ONNX bge-small)** | Local embeddings, no PyTorch, no per-lookup API cost — keeps concept resolution and chat retrieval cheap and offline. |
 | **3-pass resolver (exact → fuzzy+alias → vector)** | Vectors are a *fallback*, not the backbone — gym jargon ("pecs", "delts") resolves deterministically via SKOS-style altLabels; embeddings handle only the genuinely novel tail. |
 
@@ -210,10 +228,10 @@ exercises that pass the same filter.
 
 ## Challenges & trade-offs
 
-- **Latency vs. quality.** First cut ran ~37 s on Opus with three serial LLM
-  calls. Fix that follows from the architecture: make the planner deterministic
-  (the graph resolves concepts), stream narration off the critical path, and —
-  since the LLM's job is light — default to **Haiku**. Result: **~3.5 s** warm.
+- **Latency vs. quality.** First cut ran ~37 s with three serial LLM calls. Fix
+  that follows from the architecture: make the planner deterministic (the graph
+  resolves concepts), stream narration off the critical path, and use a
+  right-sized provider because the LLM's job is light. Result: **~3.5 s** warm.
 - **Vectors are a trap if they're the backbone.** "Kneeling Lat Stretch" reads
   benign but loads the knee; "Push-Up to **Knee**-Drive" reads risky but doesn't.
   Name/vector similarity gets both backwards; the graph's `joints_loaded` gets
@@ -232,9 +250,10 @@ Built with Claude (Claude Code). AI was used to: scaffold the FastAPI/Neo4j and
 React structure, write Cypher and the LangGraph crews, generate the synthetic
 Dune-themed members, and draft docs — all under tight human direction on
 architecture (graph-owns-safety, deterministic resolver, model/latency choices).
-The Claude integration itself follows current best practice (prompt caching,
-structured outputs, streaming, graceful degradation). Decisions, trade-offs, and
-the safety invariant were human-reviewed and verified by the test + eval suites.
+The LLM provider integration follows current best practice (structured outputs,
+streaming, durable token accounting, graceful no-key degradation; Anthropic also
+uses prompt caching). Decisions, trade-offs, and the safety invariant were
+human-reviewed and verified by the test + eval suites.
 
 ---
 
