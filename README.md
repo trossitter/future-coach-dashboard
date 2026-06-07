@@ -115,7 +115,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 **Tests & evaluation:**
 ```bash
-docker compose exec backend pytest                 # 14 critical-path tests
+docker compose exec backend pytest                 # 23 critical-path tests
 docker compose exec backend python -m evaluation.run   # scored eval report
 ```
 
@@ -292,7 +292,7 @@ docs/      SCHEMA.md · DESIGN-NOTES.md
 Status: KG1+KG2 · deterministic safety · 3-pass resolution · two LangGraph crews ·
 streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz ·
 charts · clarify-before-generate · confidence-gated copilot routing · chat history
-+ images · grounded follow-ups · input-size guards · tests (14) · eval ·
++ images · grounded follow-ups · input-size guards · tests (23) · eval ·
 one-command Docker. Synthetic data only.
 
 ---
