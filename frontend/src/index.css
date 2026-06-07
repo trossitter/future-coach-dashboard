@@ -206,6 +206,18 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .badge.ok { background: rgba(95, 122, 82, 0.14); color: var(--sage); }
 .badge.warn { background: rgba(176, 122, 60, 0.16); color: var(--amber); }
 .narration { font-family: var(--serif); font-size: 19px; line-height: 1.55; margin: 18px 0; color: #2a2c33; }
+/* the member-facing note is editable: click to refine, Enter / click-out saves */
+.narration-editable { position: relative; cursor: text; border-radius: 8px;
+  padding: 8px 10px; margin-left: -10px; margin-right: -10px; transition: background 0.12s; }
+.narration-editable:hover { background: rgba(124, 47, 61, 0.04); }
+.narration-edit { font-family: var(--serif); font-size: 19px; line-height: 1.55;
+  width: 100%; margin: 18px 0; color: #2a2c33; padding: 8px 10px;
+  border: 1px solid var(--blue); border-radius: 8px; background: #fff; outline: none; resize: vertical; }
+.narration-edited, .narration-hint { font-family: var(--sans); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; vertical-align: middle; }
+.narration-edited { margin-left: 8px; color: var(--blue); }
+.narration-hint { margin-left: 8px; color: var(--sub); opacity: 0; transition: opacity 0.12s; }
+.narration-editable:hover .narration-hint { opacity: 1; }
 .workout { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 26px; margin-top: 14px; }
 .wsection-title { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); padding-bottom: 8px; border-bottom: 1px solid var(--hair); margin-bottom: 10px; }
 .prescription { display: flex; flex-direction: column; padding: 7px 0; border-bottom: 1px solid rgba(20, 22, 26, 0.05); }
