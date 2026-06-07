@@ -415,13 +415,13 @@ button:hover:not(:disabled) { opacity: 0.86; }
 }
 .protocols-sticky-figure img {
   position: absolute;
-  top: 50%;
-  right: 50%;
+  top: 47%;
+  right: clamp(32px, 18vw, 280px);
   height: min(92vh, 980px);
   width: auto;
   object-fit: contain;
   object-position: center;
-  transform: translate(50%, -50%);
+  transform: translateY(-50%);
   opacity: var(--protocol-image-opacity);
   filter:
     saturate(var(--protocol-image-saturate))
