@@ -471,6 +471,29 @@ button:hover:not(:disabled) { opacity: 0.86; }
   cursor: pointer; padding: 6px;
 }
 .protocols-hint:hover:not(:disabled) { opacity: 0.7; }
+/* restored: the assignable-protocol card + "Assign to a member" CTA, as a closing
+   panel below the scroll-revealed title (the scene above is untouched). */
+.protocols-outro {
+  position: relative; z-index: 1;
+  min-height: 88vh; display: flex; align-items: center; justify-content: center;
+  padding: 64px clamp(20px, 8vw, 120px) 120px; background: var(--bg);
+}
+.protocols-card {
+  max-width: 520px; text-align: center;
+  background: rgba(255, 255, 255, 0.62); border: 1px solid var(--hair);
+  border-radius: 16px; padding: 40px 36px;
+}
+.protocols-card .eyebrow { margin-bottom: 16px; }
+.protocols-card-copy {
+  font-family: var(--serif); font-size: clamp(20px, 2.4vw, 26px); line-height: 1.5;
+  color: var(--ink); margin: 0 0 28px;
+}
+.protocols-assign-cta {
+  background: var(--blue); color: #fff; border: 1px solid var(--blue);
+  border-radius: 999px; padding: 11px 22px; cursor: pointer;
+  font-family: var(--sans); font-size: 12.5px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.protocols-assign-cta:hover:not(:disabled) { opacity: 0.88; }
 
 /* coach overview — member roster (the landing) */
 .section-label { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub); margin-bottom: 18px; }
