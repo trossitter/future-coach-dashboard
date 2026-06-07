@@ -551,7 +551,9 @@ def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
             }
             if c.get("down_rank") or p.get("down_rank"):
                 entry["down_rank"] = True
-                sr = safety.safety_reasons(member_id, p["id"], excl_eq, extra_eq)
+                sr = safety.safety_reasons(member_id, p["id"],
+                                           exclude_equipment=excl_eq,
+                                           extra_equipment=extra_eq)
                 hit_j = sorted(set(sr.get("joints_loaded", [])) &
                                set(sr.get("injured_joints", [])))
                 joint = hit_j[0] if hit_j else "an injured joint"
