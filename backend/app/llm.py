@@ -1,4 +1,4 @@
-"""LLM provider facade: Venice by default, Anthropic as a drop-in fallback.
+"""LLM provider facade: Anthropic by default, Venice as an explicit fallback.
 
 The public functions in this module are intentionally stable because generation
 and copilot call them directly:
@@ -104,7 +104,7 @@ def _account(usage) -> None:
 # --- provider model selection ----------------------------------------------
 
 def _provider_name() -> str:
-    return (settings.llm_provider or "venice").strip().lower()
+    return (settings.llm_provider or "anthropic").strip().lower()
 
 
 def _parse_role(schema: type[BaseModel]) -> str:

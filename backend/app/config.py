@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
     venice_api_key: str = ""
-    llm_provider: str = "venice"
+    llm_provider: str = "anthropic"
     llm_base_url: str = "https://api.venice.ai/api/v1"
     model_intent: str = "qwen3-next-80b"
     model_narrate: str = "qwen3-next-80b"
