@@ -11,11 +11,55 @@ from app.db import run
 JORDAN = "mbr_01HX9JORDAN"   # recovering left knee, no barbell
 
 
-def test_eligible_is_disjoint_from_contraindicated():
-    """The invariant: nothing contraindicated is ever eligible."""
-    eligible = {e["id"] for e in safety.eligible(JORDAN)}
-    contra = {c["id"] for c in safety.contraindicated(JORDAN)}
-    assert eligible.isdisjoint(contra)
+def _pattern_contra(member_id):
+    return {c["id"] for c in safety.contraindicated(member_id)
+            if any(r["type"] == "pattern" for r in c["reasons"])}
+
+
+def _joint_only_contra(member_id):
+    return {c["id"] for c in safety.contraindicated(member_id)
+            if any(r["type"] == "joint" for r in c["reasons"])
+            and not any(r["type"] == "pattern" for r in c["reasons"])}
+
+
+def test_eligible_is_disjoint_from_pattern_contraindicated_and_equipment():
+    """Post-down-rank invariant: eligible is disjoint from PATTERN-contraindicated
+    and from equipment-missing, but joint-stressing exercises ARE eligible (kept
+    and flagged down_rank) rather than excluded."""
+    eligible_rows = safety.eligible(JORDAN)
+    eligible = {e["id"] for e in eligible_rows}
+    # hard excludes still hold
+    assert eligible.isdisjoint(_pattern_contra(JORDAN))
+    bad_equip = run(
+        "MATCH (e:Exercise)-[:REQUIRES]->(:Equipment {name:'Barbell'}) "
+        "WHERE e.id IN $ids RETURN count(e) AS n", ids=list(eligible))
+    assert bad_equip[0]["n"] == 0
+    # joint-loaders are admitted, and every one is flagged down_rank
+    joint_only = _joint_only_contra(JORDAN)
+    admitted = joint_only & eligible
+    assert admitted, "joint-stressing exercises should now be eligible"
+    dr = {e["id"]: e["down_rank"] for e in eligible_rows}
+    assert all(dr[i] for i in admitted)
+
+
+def test_pattern_contraindicated_jump_stays_excluded_joint_loader_down_ranked():
+    """A pattern-contraindicated plyometric (a 'jump') stays EXCLUDED for Jordan,
+    while a knee-loading-but-not-plyometric exercise is eligible with down_rank."""
+    eligible_rows = safety.eligible(JORDAN)
+    eligible = {e["id"] for e in eligible_rows}
+    dr = {e["id"]: e["down_rank"] for e in eligible_rows}
+    # a contraindicated "jump" exercise is excluded
+    jumps = [c for c in safety.contraindicated(JORDAN)
+             if "jump" in c["name"].lower()
+             and any(r["type"] == "pattern" for r in c["reasons"])]
+    assert jumps
+    assert all(c["id"] not in eligible for c in jumps)
+    # a knee-loader without a contraindicated pattern is eligible AND down-ranked
+    knee_loaders = _joint_only_contra(JORDAN)
+    assert knee_loaders
+    elig_knee = knee_loaders & eligible
+    assert elig_knee
+    assert all(dr[i] for i in elig_knee)
 
 
 def test_knee_loading_exercises_are_contraindicated():

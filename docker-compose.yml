@@ -37,6 +37,7 @@ services:
     # live without an image rebuild. Bind mount overlays the COPY'd /app/app.
     volumes:
       - ./data:/app/data:ro
+      - ./docs:/app/docs
       - ./backend/app:/app/app
       - ./backend/tests:/app/tests
       - ./backend/evaluation:/app/evaluation

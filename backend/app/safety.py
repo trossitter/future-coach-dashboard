@@ -102,16 +102,19 @@ def eligible(member_id: str, *, muscle: str | None = None,
     any joints the coach confirmed to avoid this session (clarify loop), and with
     session equipment overrides ($extra_equipment available, $exclude_equipment
     unavailable)."""
+    # INJURY_JOINT_UNSAFE is NO LONGER a hard exclude — a stored-injury joint
+    # loader is admitted but flagged `down_rank` (same part-of EXISTS, reused as a
+    # RETURN expression) so callers can keep it and sort it to the bottom. Pattern,
+    # equipment, this-session avoidance and name terms still HARD-exclude.
     q = f"""
         MATCH (ex:Exercise)
-        WHERE NOT {INJURY_JOINT_UNSAFE}
-          AND NOT {INJURY_PATTERN_UNSAFE}
+        WHERE NOT {INJURY_PATTERN_UNSAFE}
           AND NOT {EQUIP_INFEASIBLE}
           AND NOT {AVOID_JOINT_UNSAFE}
           AND ($muscle IS NULL OR (ex)-[:TARGETS]->(:Muscle {{name: $muscle}}))
           AND ($pattern IS NULL OR (ex)-[:HAS_PATTERN]->(:MovementPattern {{name: $pattern}}))
           AND ($terms IS NULL OR NOT ANY(t IN $terms WHERE toLower(ex.name) CONTAINS t))
-        RETURN ex.id AS id, ex.name AS name
+        RETURN ex.id AS id, ex.name AS name, {INJURY_JOINT_UNSAFE} AS down_rank
         ORDER BY name
     """
     return run(q, id=member_id, muscle=muscle, pattern=pattern,

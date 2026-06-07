@@ -76,8 +76,21 @@ function Section({
           <div className="ex-line">
             {editable && <span className="drag-handle" aria-hidden title="Drag to reorder">⠿</span>}
             <div className="ex-body">
-              <span className="ex-name">{p.name}</span>
+              <span className="ex-name">
+                {p.name}
+                {p.down_rank && (
+                  <span
+                    className="down-rank-chip"
+                    title="Stresses an injured joint — kept in, but used sparingly"
+                  >⚠ eases off the joint</span>
+                )}
+              </span>
               <span className="ex-rx">{p.sets} × {p.reps} · rest {p.rest_seconds}s</span>
+              {p.substitute_for && (
+                <span className="ex-sub" title={`Safe swap for ${p.substitute_for}`}>
+                  ↔ instead of {p.substitute_for}
+                </span>
+              )}
             </div>
             {editable && (
               <button
@@ -303,7 +316,8 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
     if (!(result?.safe_pool || []).some((it: any) => it.id === poolItem.id)) return;
     const d = ADD_DEFAULTS[section];
     const next = cloneDisplayed();
-    next[section] = [...next[section], { id: poolItem.id, name: poolItem.name, ...d }];
+    next[section] = [...next[section],
+      { id: poolItem.id, name: poolItem.name, down_rank: !!poolItem.down_rank, ...d }];
     setEditedPlan(next);
   }
 
@@ -546,6 +560,15 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
               </button>
             )}
           </div>
+
+          {result.substitutions?.length > 0 && (
+            <div className="muted subs-note">
+              Auto-substituted:{" "}
+              {result.substitutions
+                .map((s: any) => `${s.dropped} → ${s.substitute}`)
+                .join(" · ")}
+            </div>
+          )}
 
           <div className="evidence-row">
             <button className="link" onClick={() => setShow(show === "prov" ? null : "prov")}>

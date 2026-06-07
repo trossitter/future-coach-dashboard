@@ -1,13 +1,27 @@
-# Future — Knowledge-Graph-Backed Coach Dashboard
+# Future - Knowledge-Graph-Backed Coach Dashboard
 
-A coach-facing dashboard that **generates safe, personalized workouts** and lets a
-coach **retrieve member context through an AI copilot** — where every
-recommendation is driven by a **knowledge graph, not the language model alone**.
-Safety is enforced **deterministically through graph traversal**; the LLM only
-resolves language and phrases results. It can answer *"why did you skip barbell
-squats for her?"* by pointing at the exact graph path that produced the decision.
+A coach-facing dashboard that generates safe, personalized workouts and lets a
+coach retrieve member context through an AI copilot.
 
-> Take-home submission. **Synthetic data only** — no real member or personal data.
+The core design choice: **the graph owns the reasoning; the LLM owns language.**
+Free text is resolved onto canonical graph concepts, Neo4j traversals decide what
+is safe or relevant, and the LLM phrases the already-grounded result.
+
+> Take-home submission. Synthetic data only; no real member or personal data.
+
+---
+
+## What To Try
+
+1. Open the dashboard and select **Jordan Rivera**.
+2. Generate: `Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts`.
+3. Open **Why these?**, **Filtered out**, and **Graph evidence**.
+4. Open the copilot and ask **Show me the brief**, **How's adherence trending?**,
+   or **How did they sleep this week?**
+
+This path shows the main rubric items in one place: concept resolution,
+injury/equipment traversal, provenance, member-context retrieval, charts, and
+coach-facing product flow.
 
 ---
 
@@ -15,108 +29,92 @@ squats for her?"* by pointing at the exact graph path that produced the decision
 
 ```mermaid
 flowchart TB
-  subgraph UI["Coach dashboard - React + Vite"]
-    A["Workout Generator (Surface A)"]
-    B["AI Copilot (Surface B)"]
+  subgraph UI["React + Vite coach dashboard"]
+    R["Roster triage"]
+    G["Workout Generator"]
+    C["AI Copilot"]
+    E["Graph evidence + provenance"]
   end
 
-  subgraph RT["Agentic runtime - LangGraph"]
-    G["Generation crew<br/>planner - retriever - safety-reviewer - assembler"]
-    C["Copilot crew<br/>router - retriever - answerer"]
+  subgraph API["FastAPI"]
+    GEN["LangGraph generation crew<br/>plan -> retrieve -> assemble -> safety review"]
+    COP["LangGraph copilot crew<br/>route -> retrieve -> answer"]
+    RES["3-pass resolver<br/>exact -> fuzzy/alias -> vector"]
+    SAFE["Deterministic safety filter<br/>Cypher traversal, no LLM"]
   end
 
-  SAFE{{"Deterministic safety filter<br/>graph traversal, never the prompt"}}
-
-  subgraph KG["Neo4j - single source of truth, one database"]
-    K1[("KG1 - Movement / Clinical")]
-    K2[("KG2 - Member Context")]
-    VEC[["Vector indexes<br/>exercises, chat"]]
+  subgraph NEO["Neo4j - single source of truth"]
+    KG1[("KG1 Movement / Clinical")]
+    KG2[("KG2 Member Context")]
+    VEC[["Native vector indexes<br/>exercises + chat"]]
   end
-
-  SEED["data/*.json seed<br/>ingested once via graph/ingest.py"]
-  SEED -.->|"POST /ingest"| KG
 
   LLM["LLM provider<br/>Anthropic Haiku default / Qwen fallback<br/>phrasing + structuring only"]
-  GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
+  ONT["SKOS · SNOMED CT · PROV-O · OPE/COPPER alignment"]
+  SEED["data/*.json<br/>synthetic seed data"]
 
-  A -->|SSE| G --> SAFE --> KG
-  B -->|SSE| C --> KG
-  G -.->|"structure + narrate"| LLM
-  C -.->|"grounded answer"| LLM
-  G -.->|"semantic search"| VEC
-  C -.->|"chat RAG"| VEC
-  K1 -.->|exactMatch| GR
-  K2 -.->|"AFFECTS / HAS_ACCESS_TO"| K1
+  SEED -.-> NEO
+  R --> API
+  G --> GEN --> RES --> KG1
+  GEN --> SAFE --> KG1
+  GEN --> E
+  C --> COP --> KG2
+  RES --> VEC
+  COP --> VEC
+  KG2 -->|"HAS_INJURY / HAS_ACCESS_TO"| KG1
+  GEN -.-> LLM
+  COP -.-> LLM
+  KG1 -.-> ONT
 ```
 
-**Neo4j is the single source of truth.** Every fact the coach sees — exercises,
-injuries, adherence, sleep, chat — is read from the graph at request time; the
-`data/*.json` files are *seed only*, ingested once via `graph/ingest.py`. The LLM
-**phrases** what the graph returns and never originates a fact.
+**Neo4j is the source of truth.** Exercises, injuries, equipment, sleep,
+adherence, chat, labs, and provenance are read from the graph at request time.
+The JSON files in `data/` are seeds, not runtime truth.
 
-Free text → resolved onto canonical graph concepts (3-pass resolver) → graph
-traversal makes the safe, auditable decision → the LLM phrases it. The two graphs
-meet at `Injury -[:AFFECTS]-> Joint` and `Member -[:HAS_ACCESS_TO]-> Equipment`,
-so member context drives clinical safety.
-
-The vector indexes (exercise semantics · chat history) only **widen retrieval
-recall** — they never make the safety call.
-
-### Request/response vs. streaming — when output reaches the client
-
-Two endpoint shapes. The `|SSE|` edges above are **responses**, not inputs: one
-POST opens the connection, the server then **pushes a sequence of output frames**
-(`event: <name>\ndata: <json>\n\n`) over that held-open connection.
-
-- **Plain request → one JSON blob** (connection responds once, closes):
-  `GET /roster`, `GET /members/{id}/chat`, `GET /.../charts/{kind}`, `POST /generate`.
-- **SSE stream → many output frames** (`POST /generate/stream`, `POST /copilot`).
-  The **graph-derived truth is emitted first**, before the LLM is even called, so
-  it is never blocked behind LLM latency; the prose streams after:
-
-  | endpoint | frame 1 (instant) | frame 2 (repeats) | frame 3 |
-  |---|---|---|---|
-  | `/copilot` | `context` — deterministic facts + intent + trace | `answer` — one per LLM token | `done` |
-  | `/generate/stream` | `result` — structured plan **or** a clarification + provenance + trace | `narration` — one per LLM token | `done` |
-
-The client (`api.ts` `postSSE`) reads the body as a stream, splits on the blank-line
-frame boundary, and updates React state per frame — which is why the facts/plan snap
-in immediately and the sentence then assembles word by word.
+**Vectors are a fallback.** They improve recall for messy language and chat
+retrieval, but they never decide safety.
 
 ---
 
-## Run it (one command)
+## Run It
 
-**Requires Docker with Compose v2** — Docker Desktop, OrbStack, Colima, or a Linux
-Docker Engine all work. No local Python/Node/Neo4j needed; everything runs in
-containers.
+Requires Docker with Compose v2. No local Python, Node, or Neo4j install is
+needed.
 
 ```bash
-docker compose up --build        # neo4j + backend + frontend; the graph self-seeds on first boot
+docker compose up --build
 ```
 
-The backend seeds the graph automatically on first boot (idempotent — skipped once
-populated). To re-seed manually after editing `data/*.json`, `curl -X POST localhost:8000/ingest`.
+That one command starts Neo4j, the FastAPI backend, and the Vite frontend. On
+first boot, the backend warms the embedding model and seeds Neo4j automatically
+from `data/*.json`. The first run can take a few minutes because Docker installs
+dependencies and downloads the ONNX embedding model.
 
-- **Dashboard:** http://localhost:5173
-- **API / OpenAPI docs:** http://localhost:8000/docs
-- **Neo4j browser:** http://localhost:7474 (`neo4j` / `futurepassword`)
+- Dashboard: http://localhost:5173
+- API docs: http://localhost:8000/docs
+- Neo4j Browser: http://localhost:7474 (`neo4j` / `futurepassword`)
 
-The LLM is **optional** — without a key the system still generates safe plans and
-grounded answers through the graph, just without streamed natural-language
-narration. Anthropic Haiku is the default provider because this path keeps prompt
-caching and is stable for the light phrasing/structuring work:
+If the dashboard opens before seeding finishes, wait for the backend to print
+`Application startup complete` and refresh. If you edited seed data and want to
+force a re-ingest:
 
+```bash
+curl -X POST localhost:8000/ingest
 ```
+
+No `.env` file is required for the core demo. Without an LLM key, graph-safe
+plans, provenance, filtered exercises, charts, and retrieved copilot context
+still work; only streamed narration/LLM-routed phrasing is omitted.
+
+```env
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-...
 CLAUDE_MODEL=claude-haiku-4-5
 ```
 
-Venice/Qwen remains available as an explicit OpenAI-compatible fallback behind
-the same interface:
+Venice/Qwen is available as an explicit OpenAI-compatible fallback:
 
-```
+```env
 LLM_PROVIDER=venice
 VENICE_API_KEY=...
 LLM_BASE_URL=https://api.venice.ai/api/v1
@@ -125,212 +123,194 @@ MODEL_NARRATE=qwen3-next-80b
 MODEL_COPILOT=qwen3-next-80b
 ```
 
-The model is deliberately right-sized: the graph owns safety, eligibility,
-retrieval, and provenance; the provider only phrases narration and returns small
-structured routing/planning objects.
-
-> First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
-
-**Tests & evaluation:**
-```bash
-docker compose exec backend pytest                 # 23 critical-path tests
-docker compose exec backend python -m evaluation.run   # scored eval report
-```
+If ports `5173`, `8000`, `7474`, or `7687` are already in use, stop the process
+using that port or adjust `docker-compose.yml`.
 
 ---
 
-## The two surfaces
+## The Product
 
-**A · Workout Generator.** Prompt + time window → a multi-agent runtime renders a
-structured workout (warmup / main / cooldown, sets·reps·rest). Interactive,
-graph-driven: exclude exercises, account for injuries (via the anatomy
-hierarchy), drop unavailable equipment and **find alternatives**. A
-**clarify-before-generate** gate catches an avoidance the coach gestures at but
-that isn't on file (*"easy on the knee"* for a member with no knee injury) and
-asks rather than guessing — a *Yes* filters the safe pool through the same
-`part-of` traversal as a real injury. Every plan ships a **provenance trace** (why
-each exercise, which graph path, what was filtered for safety) and a
-**graph-evidence** visualization.
+**Surface A - Workout Generator**
 
-**B · Coach AI Copilot.** Chat with retrieval over the member-context graph:
-quick-prompt palette (*brief · adherence · sleep · churn · what changed*), charts
-(adherence / sleep / weight / messages), **past chat history with image
-attachments**, and **grounded follow-ups** (conversation memory for context,
-every claim still pinned to the retrieved member slice — never invented). Routing
-is **deterministic-first** (keyword match answers the common case in ~0ms, no LLM
-— a coach wants a fast reminder); only a free-typed question that keywords can't
-place escalates to a **structured `RouteDecision`**, and if even that is
-low-confidence it **asks an either/or question** rather than guessing.
+The coach enters a prompt and time window. The runtime resolves concepts,
+retrieves the graph-safe candidate pool, assembles warmup/main/cooldown, validates
+every exercise ID against the safe set, and returns provenance.
 
----
+Interactive constraints are graph-driven:
 
-## The two knowledge graphs
+| Coach says | Behavior |
+| --- | --- |
+| `Exclude deadlifts` | Deadlift name variants are removed from eligibility. |
+| `Her left knee is bothering her` | Knee is resolved to the joint graph; part-of traversal covers substructures. |
+| `No barbell, only dumbbells and a kettlebell` | Barbell-only work is filtered; safe alternatives are shown. |
 
-- **KG1 · Movement/Clinical** — exercises, muscles, joints/regions, movement
-  patterns, equipment, injuries. Edges: `targets`, `loads`, `requires`,
-  **`part-of`** (anatomy hierarchy — an injured region cascades to its joints and
-  a sub-structure rolls up), **`contraindicated-for`** (injury → unsafe movement
-  patterns). Grounded in published ontologies (below).
-- **KG2 · Member Context** — profile, goals, injuries, sessions, adherence,
-  biomarkers, labs, **embedded chat history**, coach brief — plus **Oura** wearable
-  readings, because the profile is source-agnostic (see *Design notes*).
+The UI then lets the coach reorder, remove, add only from the safe pool, add cues,
+and send the final plan.
 
-Full node/edge contract: [`docs/SCHEMA.md`](docs/SCHEMA.md).
+**Surface B - Coach AI Copilot**
+
+The copilot retrieves over KG2: profile, goals, injuries, adherence, sleep,
+Oura-style wearable readings, labs, DEXA, workout history, chat, coach brief, and
+churn signals. Quantitative answers come from typed graph slices and chart
+endpoints; the LLM phrases the answer and cites the retrieved facts.
 
 ---
 
-## Tech choices — and why
+## The Two Knowledge Graphs
 
-| Choice | Why |
-|--------|-----|
-| **Neo4j (labeled property graph)** | Spec-preferred; the safety question *is* a traversal. One DB holds both subgraphs **and** native vector indexes, so GraphRAG's structural + semantic halves live together. |
-| **Deterministic safety, LLM-for-phrasing** | The graded promise is safety *from the graph, not the prompt*. The safety-reviewer validates every prescribed id ∈ the graph-derived safe set; the LLM cannot introduce an unsafe exercise (prompt-injection can't move it either). |
-| **LangGraph multi-agent crews** | Typed-state `StateGraph`s with explicit edges and a critic loop — the agentic workflow the brief asks for, with safety as a hard gate, not a probabilistic hope. |
-| **Anthropic Haiku default; Venice/Qwen fallback** | Right-sized and cache-friendly: the graph does safety/reasoning, so the LLM only handles light structuring + phrasing. Haiku keeps prompt caching on the default path; Venice remains an explicit OpenAI-compatible fallback (`qwen3-next-80b` per role). |
-| **fastembed (ONNX bge-small)** | Local embeddings, no PyTorch, no per-lookup API cost — keeps concept resolution and chat retrieval cheap and offline. |
-| **3-pass resolver (exact → fuzzy+alias → vector)** | Vectors are a *fallback*, not the backbone — gym jargon ("pecs", "delts") resolves deterministically via SKOS-style altLabels; embeddings handle only the genuinely novel tail. |
+**KG1 - Movement / Clinical**
 
-More on scale / i18n / security / interoperability and the ontology grounding:
-[`docs/DESIGN-NOTES.md`](docs/DESIGN-NOTES.md).
+Nodes: `Exercise`, `Muscle`, `Joint`, `Region`, `MovementPattern`, `Equipment`,
+`Injury`.
+
+Edges: `TARGETS`, `LOADS`, `REQUIRES`, `HAS_PATTERN`, `PART_OF`,
+`CONTRAINDICATES`.
+
+This graph answers: What does an exercise train? What does it load? What
+equipment does it require? Which movements are unsafe for an injury?
+
+**KG2 - Member Context**
+
+Nodes: `Member`, `Goal`, `Session`, `AdherenceWeek`, `OuraReading`, `Lab`,
+`ChatMessage`, `CoachBrief`, `MorningTask`, plus member-linked injuries and
+equipment.
+
+Bridge edges connect member facts into KG1:
+
+- `Member -[:HAS_INJURY]-> Injury -[:AFFECTS]-> Joint`
+- `Member -[:HAS_ACCESS_TO]-> Equipment`
+
+Full schema: [`docs/SCHEMA.md`](docs/SCHEMA.md).
 
 ---
 
-## How safety works (the core constraint)
+## Safety
 
-A single Cypher walk decides eligibility — there is no "be careful" in a prompt:
+Safety is a Cypher traversal, not a prompt instruction:
 
-```
+```cypher
 (Member)-[:HAS_INJURY]->(Injury)-[:AFFECTS]->(ij:Joint)
 (Exercise)-[:LOADS]->(loaded:Joint)
-WHERE (loaded)-[:PART_OF*0..]->(ij) OR (ij)-[:PART_OF*0..]->(loaded)   -- part-of
-  OR (Injury)-[:CONTRAINDICATES]->(:MovementPattern)<-[:HAS_PATTERN]-(Exercise)
+WHERE (loaded)-[:PART_OF*0..]->(ij)
+   OR (ij)-[:PART_OF*0..]->(loaded)
+   OR (Injury)-[:CONTRAINDICATES]->(:MovementPattern)<-[:HAS_PATTERN]-(Exercise)
 ```
 
-plus an equipment-availability check. `part-of` means a knee injury also covers
-its sub-structures (and a region injury cascades to its joints); the pattern edge
-catches unsafe movements that don't even load the injured joint (e.g.
-plyometrics). "Why?" returns the exact path; "alternatives" returns same-pattern
-exercises that pass the same filter.
+Then equipment feasibility is checked against `HAS_ACCESS_TO` plus any
+session-specific equipment overrides.
+
+Every generated plan is safety-reviewed after assembly: prescribed IDs must be a
+subset of the graph-derived safe pool. The coach can manually edit the plan, but
+the add-picker is also restricted to that same safe pool.
 
 ---
 
-## Ontology grounding 
+## Ontology Grounding
 
-- **SKOS** — gym-jargon altLabels + SNOMED `exactMatch`: the catalog↔ontology bridge.
-- **SNOMED CT** (via NCI EVS) — official codes for the 9 joints + patellofemoral
-  sub-structure + the seed conditions (knee `49076000`, patellofemoral stress
-  syndrome `430725003`), fetched once and **cached offline** (`data/snomed-cache.json`).
-- **PROV-O** — provenance of *why each exercise was selected* (Surface A).
-- **OPE / COPPER** — node taxonomy aligned to OPE; COPPER realized as the
-  longitudinal journey-stage reasoning. *What we left out, and why, is documented.*
+The grounding is intentionally small and load-bearing.
 
----
+| Source | Used for | Left out |
+| --- | --- | --- |
+| SKOS | `altLabel`-style gym jargon (`pecs`, `delts`) and exact/alias concept mappings. | Full RDF machinery. |
+| SNOMED CT via NCI EVS | Official codes for the 9 joints, patellofemoral substructure, and seed conditions. Cached in `data/snomed-cache.json`. | Full SNOMED hierarchy and laterality variants. |
+| PROV-O | Recommendation provenance: chosen exercise, graph path, filtered candidate, safety reason. | JSON-LD/RDF export. |
+| OPE | Exercise-domain class alignment: exercises, muscles, joints, equipment, injuries. | Full OWL ingest. |
+| COPPER | Personalization/journey-stage framing from adherence and churn. | Lifestyle ontology classes outside this catalog's granularity. |
 
-## Challenges & trade-offs
-
-- **Latency vs. quality.** First cut ran ~37 s with three serial LLM calls. Fix
-  that follows from the architecture: make the planner deterministic (the graph
-  resolves concepts), stream narration off the critical path, and use a
-  right-sized provider because the LLM's job is light. Result: **~3.5 s** warm.
-- **Vectors are a trap if they're the backbone.** "Kneeling Lat Stretch" reads
-  benign but loads the knee; "Push-Up to **Knee**-Drive" reads risky but doesn't.
-  Name/vector similarity gets both backwards; the graph's `joints_loaded` gets
-  both right. So embeddings are the 3rd pass, not the 1st.
-- **`priority_tier` is constant (2)** across all 50 exercises — documented as a
-  non-signal rather than faked into a ranking.
-- **Interactive ad-hoc constraints** (a one-off "her knee is bothering her" for a
-  member without it stored) currently flow through `exclude_terms`; richer ad-hoc
-  injury/equipment overrides are the next increment.
+More: [`docs/DESIGN-NOTES.md`](docs/DESIGN-NOTES.md).
 
 ---
 
-## How I used AI to build this
+## Tests And Evaluation
 
-Built with Claude (Claude Code). AI was used to: scaffold the FastAPI/Neo4j and
-React structure, write Cypher and the LangGraph crews, generate the synthetic
-Dune-themed members, and draft docs — all under tight human direction on
-architecture (graph-owns-safety, deterministic resolver, model/latency choices).
-The LLM provider integration follows current best practice (structured outputs,
-streaming, durable token accounting, graceful no-key degradation; Anthropic also
-uses prompt caching). Decisions, trade-offs, and the safety invariant were
-human-reviewed and verified by the test + eval suites.
-
----
-
-## Evaluating this in production
-
-- **Safety (non-negotiable):** the invariant *no contraindicated exercise is ever
-  eligible* is asserted per member in CI (`evaluation/run.py`) and as a unit test;
-  in production it becomes a **blocking guardrail** on every generated plan
-  (validate ids ⊆ safe set before returning) with alerting on any violation.
-- **Retrieval quality:** labeled concept-resolution accuracy and top-k relevance,
-  tracked over time; alert on regressions when the catalog or model changes.
-- **Recommendation quality:** coach accept/edit rate, equipment/time-budget
-  compliance, member adherence as a downstream signal.
-- **Failure modes to monitor:** empty/thin safe pools (over-constrained members →
-  graceful degradation path), resolver low-confidence rate (→ ask-for-clarification),
-  LLM latency/cost (`usage`, cache-hit rate), graph-query latency, model drift.
-- **Observability:** every generation already emits a per-agent/tool/query trace
-  (timings) — the basis for production tracing (LLM calls, tools, Cypher).
-
----
-
-## Worked examples
-
-**1 · Injury + limited equipment — Jordan Rivera** (recovering left knee, no barbell):
-`"build lower-body strength without aggravating my knee"`
-- **Plan** (at-risk → low volume): warmup *Walking Toe Touches, Standing Neck
-  Circles*; main *Low-Plank↔Side-Plank, Bodyweight Pike, **Push-Up to Knee-Drive**,
-  DB Overhead Press*; cooldown stretches.
-- **Filtered for safety:** *Barbell Racked Forward Lunge* (joint + equipment),
-  *BOSU Step Over* (joint + pattern) → alternatives *Bodyweight Pike, Plank*.
-- **Invariant:** 0 of the prescribed ids are contraindicated; none need a barbell.
-
-**2 · Over-constrained / graceful degradation — Alia Atreides** (knee + shoulder +
-lumbar injuries, only a yoga mat + band): the safe pool collapses to **3** — the
-system returns a coherent gentle plan rather than crashing or inventing.
-
-**3 · Copilot grounding — Duncan Idaho:** *"How did he sleep this week?"* →
-*"avg sleep score 82, 6.9–8.0 h, best May 31 (88), lowest June 2 (76)"* — drawn
-straight from his Oura readings in KG2, nothing invented.
-
----
-
-## Project layout
-
-```
-backend/   FastAPI · Neo4j driver · graph/ (KG1+KG2 ingest, anatomy, schema)
-           resolver · safety · longitudinal · grounding/ (SNOMED) · agents/ (crews)
-           llm · observability · tests/ · evaluation/
-frontend/  React + Vite editorial dashboard (both surfaces, graph-viz, charts)
-data/      exercises.json · member-context.json (Jordan) · members-extra.json
-           snomed-cache.json
-docs/      SCHEMA.md · DESIGN-NOTES.md
+```bash
+docker compose exec backend python -m pytest
+docker compose exec backend python -m evaluation.run
+docker compose exec frontend npx tsc -b --pretty false
 ```
 
-Status: KG1+KG2 · deterministic safety · 3-pass resolution · two LangGraph crews ·
-streaming · provenance · ontology grounding · longitudinal/Oura · graph-viz ·
-charts · clarify-before-generate · confidence-gated copilot routing · chat history
-+ images · grounded follow-ups · input-size guards · tests (23) · eval ·
-one-command Docker. Synthetic data only.
+Current coverage focuses on the critical paths:
+
+- Resolver: exact, alias/fuzzy, vector fallback, abstention.
+- Safety: eligible set disjoint from contraindicated set, part-of traversal,
+  pattern contraindications, equipment feasibility, safe alternatives.
+- Interactive adjustment: deadlift exclusion, equipment polarity, clarify gates,
+  requested-but-filtered acknowledgement.
+- LLM provider facade: no-key degradation, active-provider key selection,
+  structured output, streaming deltas, and token accounting.
+- Fixture-backed demo cases:
+  [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
+  executed by
+  [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
+- Reader-visible captures:
+  [`docs/examples/worked-examples.json`](docs/examples/worked-examples.json)
+  contains the generated plans, filtered candidates, audit trace, and provenance.
+  It is checked by pytest; refresh it with
+  `docker compose exec backend python -m evaluation.worked_examples --write`.
+- Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
+  recommendation safe-set membership across synthetic members.
 
 ---
 
-## Where this goes next
+## Key Decisions
 
-Three threads I'd build under the same graph-owns-the-reasoning principle — noted
-here as direction, not solved:
+| Decision | Why |
+| --- | --- |
+| Neo4j over in-memory graph | The spec asks whether graph traversal is doing real work. Neo4j gives a production-shaped graph store, Cypher, constraints, and native vector indexes. |
+| LangGraph runtime | The workflow has explicit stages and a safety reviewer loop; safety is a hard gate, not a model preference. |
+| Claude Haiku default | The graph does the reasoning, so the LLM can be fast and cheap: structure light outputs, phrase grounded answers, stream narration. |
+| fastembed local embeddings | No per-lookup API cost; useful for fallback concept resolution and chat retrieval. |
+| Source-agnostic member graph | Oura, labs, DEXA, adherence, and chat all become graph facts. Members are not penalized for bringing data from outside Future. |
+| Graceful no-key mode | The deterministic core runs without an LLM key; a missing model cannot disable safety. |
 
-- **Clinician-in-the-loop governance for contraindication edges.** Today the
-  `CONTRAINDICATES` rules are a hand-rolled starter map. In production they need
-  an owner: who signs a rule, how it's versioned, and how a change is reviewed
-  before it filters a real member's plan. The edges become governed clinical
-  artifacts with provenance, not code constants.
-- **The labs→condition→prescription path, end-to-end.** The lab layer already
-  surfaces flagged markers; the next step is to traverse from a lab finding to the
-  condition it implies to the training/lifestyle prescription it warrants — the
-  same deterministic, explainable graph path, extended through the clinical middle.
-- **A medication / dose-phase model.** For GLP-1 and similar, where the member is
-  in their titration changes what's safe and what's appropriate to prescribe.
-  Modeling medication and dose phase as first-class nodes lets the graph reason
-  over it the way it already reasons over injuries and equipment.
+---
+
+## Trade-Offs
+
+- **Hard exclusion vs. down-ranking.** This implementation hard-excludes
+  exercises that load an injured joint. A production refinement could keep
+  non-contraindicated joint stress as a down-ranked option, but the conservative
+  choice is easier to defend for a safety-critical take-home.
+- **Hand-written frontend types.** Backend contracts are Pydantic and OpenAPI
+  exposed, but the frontend uses hand-written TypeScript shapes in places. The
+  next hardening step is generated TS from the API contract.
+- **Catalog scale vs. member scale.** The exercise catalog is finite and
+  indexable. The real production load is members, member history, chat embeddings,
+  and LLM throughput; see `docs/DESIGN-NOTES.md`.
+- **Ontology subset.** The graph uses the ontology pieces that affect reasoning
+  instead of ingesting large ontologies shallowly.
+
+---
+
+## Production Evaluation
+
+- **Safety false negatives:** no contraindicated exercise may reach a plan.
+  Treat any violation as a blocking release failure.
+- **Resolution quality:** track exact/fuzzy/vector/abstain rates and labeled
+  accuracy for messy coach language.
+- **Retrieval quality:** measure copilot answer grounding and chat retrieval
+  precision@k.
+- **Recommendation quality:** coach accept/edit rate, substitution acceptance,
+  equipment/time compliance, and downstream member adherence.
+- **Operational health:** graph-query latency, LLM latency/cost, prompt-cache hit
+  rate, token budget exhaustion, and low-confidence clarification rate.
+
+---
+
+## Project Layout
+
+```text
+backend/   FastAPI, Neo4j driver, resolver, safety, longitudinal logic,
+           LangGraph agents, grounding, tests, evaluation
+frontend/  React/Vite dashboard, generator, copilot, charts, graph evidence
+data/      Synthetic exercises, Jordan member context, extra synthetic members,
+           SNOMED cache
+docs/      Schema and design notes
+```
+
+Status: KG1 + KG2, deterministic safety, 3-pass resolution, Neo4j vector indexes,
+LangGraph generation and copilot crews, SSE streaming, provenance, graph
+evidence, charts, source-agnostic member context, fixture-backed demo tests,
+tests, and one-command Docker.
+
+AI usage disclosure: [`AI_USAGE.md`](AI_USAGE.md).
