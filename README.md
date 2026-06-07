@@ -70,6 +70,8 @@ flowchart TB
 **Neo4j is the source of truth.** Exercises, injuries, equipment, sleep,
 adherence, chat, labs, and provenance are read from the graph at request time.
 The JSON files in `data/` are seeds, not runtime truth.
+  LLM["LLM provider<br/>Anthropic Haiku default / Qwen fallback<br/>phrasing + structuring only"]
+  GR["Grounding - SNOMED CT, SKOS, PROV-O, OPE/COPPER"]
 
 **Vectors are a fallback.** They improve recall for messy language and chat
 retrieval, but they never decide safety.
@@ -125,6 +127,34 @@ The UI then lets the coach reorder, remove, add only from the safe pool, add cue
 and send the final plan.
 
 **Surface B - Coach AI Copilot**
+The LLM is **optional** — without a key the system still generates safe plans and
+grounded answers through the graph, just without streamed natural-language
+narration. Anthropic Haiku is the default provider because this path keeps prompt
+caching and is stable for the light phrasing/structuring work:
+
+```
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-haiku-4-5
+```
+
+Venice/Qwen remains available as an explicit OpenAI-compatible fallback behind
+the same interface:
+
+```
+LLM_PROVIDER=venice
+VENICE_API_KEY=...
+LLM_BASE_URL=https://api.venice.ai/api/v1
+MODEL_INTENT=qwen3-next-80b
+MODEL_NARRATE=qwen3-next-80b
+MODEL_COPILOT=qwen3-next-80b
+```
+
+The model is deliberately right-sized: the graph owns safety, eligibility,
+retrieval, and provenance; the provider only phrases narration and returns small
+structured routing/planning objects.
+
+> First run downloads a ~130 MB ONNX embedding model (cached in a volume after).
 
 The copilot retrieves over KG2: profile, goals, injuries, adherence, sleep,
 Oura-style wearable readings, labs, DEXA, workout history, chat, coach brief, and
@@ -208,17 +238,14 @@ docker compose exec frontend npx tsc -b --pretty false
 
 Current coverage focuses on the critical paths:
 
-- Resolver: exact, alias/fuzzy, vector fallback, abstention.
-- Safety: eligible set disjoint from contraindicated set, part-of traversal,
-  pattern contraindications, equipment feasibility, safe alternatives.
-- Interactive adjustment: deadlift exclusion, equipment polarity, clarify gates,
-  requested-but-filtered acknowledgement.
-- Fixture-backed demo cases:
-  [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
-  executed by
-  [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
-- Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
-  recommendation safe-set membership across synthetic members.
+Built with Claude (Claude Code). AI was used to: scaffold the FastAPI/Neo4j and
+React structure, write Cypher and the LangGraph crews, generate the synthetic
+Dune-themed members, and draft docs — all under tight human direction on
+architecture (graph-owns-safety, deterministic resolver, model/latency choices).
+The LLM provider integration follows current best practice (structured outputs,
+streaming, durable token accounting, graceful no-key degradation; Anthropic also
+uses prompt caching). Decisions, trade-offs, and the safety invariant were
+human-reviewed and verified by the test + eval suites.
 
 ---
 

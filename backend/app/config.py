@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     data_dir: str = "data"
 
     anthropic_api_key: str = ""
+    venice_api_key: str = ""
+    llm_provider: str = "anthropic"
+    llm_base_url: str = "https://api.venice.ai/api/v1"
+    model_intent: str = "qwen3-next-80b"
+    model_narrate: str = "qwen3-next-80b"
+    model_copilot: str = "qwen3-next-80b"
     # The graph owns the reasoning/safety, so the LLM only does light structuring
     # + phrasing — Haiku is the right fit for the ~5s target and token efficiency.
     # Override with CLAUDE_MODEL=claude-opus-4-8 (or sonnet-4-6) for more polish.

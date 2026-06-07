@@ -1,24 +1,24 @@
-"""Claude client wrapper — prompt caching, structured output, streaming, and
-graceful degradation when ANTHROPIC_API_KEY is absent.
+"""LLM provider facade: Anthropic by default, Venice as an explicit fallback.
 
-The LLM is confined to *phrasing and structuring*: it never decides safety —
-the graph does. So with no key the platform still works end-to-end: it returns
-the deterministic plan + provenance and simply skips natural-language narration.
+The public functions in this module are intentionally stable because generation
+and copilot call them directly:
 
-Model defaults to the latest Opus (`claude-opus-4-8`); set CLAUDE_MODEL to a
-faster model for the ~5s latency target. Uses adaptive thinking off (these are
-phrasing tasks, not reasoning tasks — reasoning lives in the graph).
+  is_available, parse, complete, stream, budget_exhausted, tokens_used
+
+The LLM is confined to phrasing and light structuring. Safety and
+personalization stay in the graph, so missing keys or exhausted budgets degrade
+to deterministic plans and retrieved graph facts instead of breaking the app.
 """
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from typing import Iterator, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .config import settings
 
-MODEL = settings.claude_model
 T = TypeVar("T", bound=BaseModel)
 
 # --- token budget -----------------------------------------------------------
@@ -69,12 +69,29 @@ def budget_exhausted() -> bool:
     return settings.llm_token_budget > 0 and tokens_used() >= settings.llm_token_budget
 
 
+def _usage_get(usage, *names: str) -> int:
+    if usage is None:
+        return 0
+    for name in names:
+        if isinstance(usage, dict):
+            value = usage.get(name)
+        else:
+            value = getattr(usage, name, None)
+        if value:
+            return int(value)
+    return 0
+
+
 def _account(usage) -> None:
+    """Map provider usage objects into the shared durable token counter."""
     global _tokens_used
     if usage is None:
         return
-    delta = (getattr(usage, "input_tokens", 0) or 0) + \
-            (getattr(usage, "output_tokens", 0) or 0)
+    input_tokens = _usage_get(usage, "input_tokens", "prompt_tokens")
+    output_tokens = _usage_get(usage, "output_tokens", "completion_tokens")
+    delta = input_tokens + output_tokens
+    if delta <= 0:
+        delta = _usage_get(usage, "total_tokens")
     if delta <= 0:
         return
     _tokens_used += delta  # mirror first, so a DB failure still records spend
@@ -84,61 +101,210 @@ def _account(usage) -> None:
         pass  # durable write failed — in-memory mirror already updated
 
 
-def is_available() -> bool:
-    """True only when there's a key AND we're under the token budget — so every
-    LLM path degrades to the deterministic graph output once the budget is hit."""
-    return bool(settings.anthropic_api_key) and not budget_exhausted()
+# --- provider model selection ----------------------------------------------
+
+def _provider_name() -> str:
+    return (settings.llm_provider or "anthropic").strip().lower()
+
+
+def _parse_role(schema: type[BaseModel]) -> str:
+    # RouteDecision is copilot routing. Other structured outputs currently
+    # support generation planning/assembly, so they use the intent model slot.
+    return "copilot" if schema.__name__ == "RouteDecision" else "intent"
+
+
+def _stream_role(system: str) -> str:
+    return "copilot" if "copilot" in system.lower() else "narrate"
+
+
+def _venice_model(role: str) -> str:
+    if role == "copilot":
+        return settings.model_copilot
+    if role == "narrate":
+        return settings.model_narrate
+    return settings.model_intent
+
+
+def _schema_name(schema: type[BaseModel]) -> str:
+    return "".join(ch if ch.isalnum() else "_" for ch in schema.__name__)
+
+
+# --- providers --------------------------------------------------------------
+
+class _Provider:
+    def has_key(self) -> bool:
+        raise NotImplementedError
+
+    def parse(self, system: str, user: str, schema: type[T], *,
+              max_tokens: int) -> T | None:
+        raise NotImplementedError
+
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str | None:
+        raise NotImplementedError
+
+    def stream(self, system: str, user: str, *, max_tokens: int) -> Iterator[str]:
+        raise NotImplementedError
+
+
+class _AnthropicProvider(_Provider):
+    def has_key(self) -> bool:
+        return bool(settings.anthropic_api_key)
+
+    @lru_cache(maxsize=1)
+    def _client(self):
+        import anthropic
+        return anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+    @staticmethod
+    def _system(text: str) -> list[dict]:
+        """Stable, cacheable system prefix for Anthropic prompt caching."""
+        return [{"type": "text", "text": text,
+                 "cache_control": {"type": "ephemeral"}}]
+
+    def parse(self, system: str, user: str, schema: type[T], *,
+              max_tokens: int) -> T | None:
+        resp = self._client().messages.parse(
+            model=settings.claude_model,
+            max_tokens=max_tokens,
+            system=self._system(system),
+            messages=[{"role": "user", "content": user}],
+            output_format=schema,
+        )
+        _account(getattr(resp, "usage", None))
+        return resp.parsed_output
+
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str | None:
+        resp = self._client().messages.create(
+            model=settings.claude_model,
+            max_tokens=max_tokens,
+            system=self._system(system),
+            messages=[{"role": "user", "content": user}],
+        )
+        _account(getattr(resp, "usage", None))
+        return "".join(b.text for b in resp.content if b.type == "text")
+
+    def stream(self, system: str, user: str, *, max_tokens: int) -> Iterator[str]:
+        with self._client().messages.stream(
+            model=settings.claude_model,
+            max_tokens=max_tokens,
+            system=self._system(system),
+            messages=[{"role": "user", "content": user}],
+        ) as s:
+            yield from s.text_stream
+            _account(getattr(s.get_final_message(), "usage", None))
+
+
+class _VeniceProvider(_Provider):
+    def has_key(self) -> bool:
+        return bool(settings.venice_api_key)
+
+    @lru_cache(maxsize=1)
+    def _client(self):
+        from openai import OpenAI
+        return OpenAI(api_key=settings.venice_api_key, base_url=settings.llm_base_url)
+
+    @staticmethod
+    def _messages(system: str, user: str) -> list[dict]:
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+    @staticmethod
+    def _extra_body() -> dict:
+        return {
+            "venice_parameters": {
+                "disable_thinking": True,
+                "include_venice_system_prompt": False,
+            },
+        }
+
+    def parse(self, system: str, user: str, schema: type[T], *,
+              max_tokens: int) -> T | None:
+        resp = self._client().chat.completions.create(
+            model=_venice_model(_parse_role(schema)),
+            messages=self._messages(system, user),
+            max_completion_tokens=max_tokens,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": _schema_name(schema),
+                    "schema": schema.model_json_schema(),
+                    "strict": True,
+                },
+            },
+            extra_body=self._extra_body(),
+        )
+        _account(getattr(resp, "usage", None))
+        content = resp.choices[0].message.content if resp.choices else ""
+        try:
+            return schema.model_validate_json(content or "{}")
+        except (ValidationError, ValueError, TypeError, json.JSONDecodeError):
+            try:
+                return schema.model_validate(json.loads(content or "{}"))
+            except Exception:
+                return None
+
+    def complete(self, system: str, user: str, *, max_tokens: int) -> str | None:
+        resp = self._client().chat.completions.create(
+            model=_venice_model("narrate"),
+            messages=self._messages(system, user),
+            max_completion_tokens=max_tokens,
+            extra_body=self._extra_body(),
+        )
+        _account(getattr(resp, "usage", None))
+        return resp.choices[0].message.content if resp.choices else ""
+
+    def stream(self, system: str, user: str, *, max_tokens: int) -> Iterator[str]:
+        chunks = self._client().chat.completions.create(
+            model=_venice_model(_stream_role(system)),
+            messages=self._messages(system, user),
+            max_completion_tokens=max_tokens,
+            stream=True,
+            stream_options={"include_usage": True},
+            extra_body=self._extra_body(),
+        )
+        for chunk in chunks:
+            _account(getattr(chunk, "usage", None))
+            for choice in getattr(chunk, "choices", []) or []:
+                delta = getattr(choice, "delta", None)
+                content = getattr(delta, "content", None)
+                if content:
+                    yield content
 
 
 @lru_cache(maxsize=1)
-def _client():
-    import anthropic
-    return anthropic.Anthropic(api_key=settings.anthropic_api_key)
+def _provider() -> _Provider:
+    name = _provider_name()
+    if name == "anthropic":
+        return _AnthropicProvider()
+    if name == "venice":
+        return _VeniceProvider()
+    raise ValueError(f"Unsupported LLM_PROVIDER={settings.llm_provider!r}")
 
 
-def _system(text: str) -> list[dict]:
-    """Stable, cacheable system prefix. Cache only engages above the model's
-    minimum prefix; verified via usage.cache_read_input_tokens in observability."""
-    return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
+# --- public facade ----------------------------------------------------------
+
+def is_available() -> bool:
+    """True only when the active provider has a key and budget remains."""
+    return _provider().has_key() and not budget_exhausted()
 
 
 def parse(system: str, user: str, schema: type[T], *, max_tokens: int = 2000) -> T | None:
-    """Structured output → a validated Pydantic instance (None if no key)."""
+    """Structured output → a validated Pydantic instance (None if unavailable)."""
     if not is_available():
         return None
-    resp = _client().messages.parse(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system=_system(system),
-        messages=[{"role": "user", "content": user}],
-        output_format=schema,
-    )
-    _account(getattr(resp, "usage", None))
-    return resp.parsed_output
+    return _provider().parse(system, user, schema, max_tokens=max_tokens)
 
 
 def complete(system: str, user: str, *, max_tokens: int = 1500) -> str | None:
     if not is_available():
         return None
-    resp = _client().messages.create(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system=_system(system),
-        messages=[{"role": "user", "content": user}],
-    )
-    _account(getattr(resp, "usage", None))
-    return "".join(b.text for b in resp.content if b.type == "text")
+    return _provider().complete(system, user, max_tokens=max_tokens)
 
 
 def stream(system: str, user: str, *, max_tokens: int = 1500) -> Iterator[str]:
     """Yield text deltas for SSE. Yields nothing if no key (caller falls back)."""
     if not is_available():
         return
-    with _client().messages.stream(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system=_system(system),
-        messages=[{"role": "user", "content": user}],
-    ) as s:
-        yield from s.text_stream
-        _account(getattr(s.get_final_message(), "usage", None))
+    yield from _provider().stream(system, user, max_tokens=max_tokens)
