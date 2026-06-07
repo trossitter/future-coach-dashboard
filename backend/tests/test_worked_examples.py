@@ -15,6 +15,7 @@ import pytest
 from app import safety
 from app.agents import generation as gen
 from app.db import run
+from evaluation import worked_examples
 
 CASES = json.loads(
     (Path(__file__).parent / "fixtures" / "worked_examples.json").read_text()
@@ -97,3 +98,11 @@ def test_fixture_backed_demo_examples_stay_graph_safe(
     assert plan_ids <= provenance_by_id.keys()
     assert all(provenance_by_id[p["id"]]["safe_because"] for p in plan)
     assert all(provenance_by_id[p["id"]]["chosen_because"] for p in plan)
+
+
+def test_reader_visible_worked_examples_do_not_drift():
+    assert worked_examples.OUTPUT_PATH.exists(), (
+        "Missing docs/examples/worked-examples.json. Run "
+        "python -m evaluation.worked_examples --write."
+    )
+    assert worked_examples.OUTPUT_PATH.read_text() == worked_examples.render_examples()

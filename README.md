@@ -242,6 +242,11 @@ Current coverage focuses on the critical paths:
   [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
   executed by
   [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
+- Reader-visible captures:
+  [`docs/examples/worked-examples.json`](docs/examples/worked-examples.json)
+  contains the generated plans, filtered candidates, audit trace, and provenance.
+  It is checked by pytest; refresh it with
+  `docker compose exec backend python -m evaluation.worked_examples --write`.
 - Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
   recommendation safe-set membership across synthetic members.
 
