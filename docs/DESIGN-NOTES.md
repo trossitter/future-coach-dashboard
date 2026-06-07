@@ -1,9 +1,8 @@
-# Design Notes — scale, i18n, security, interoperability
+# Design Notes — scale, security, interoperability
 
 Cross-cutting decisions, recorded as they're made. The throughline: **a
 symbolic graph core does the reasoning; ML is confined to the edges.** That one
-choice is what makes the system scale, internationalize, stay secure, and
-interoperate.
+choice is what makes the system scale, stay secure, and interoperate.
 
 ## Vectors are a fallback, not the backbone
 
@@ -53,11 +52,11 @@ personalization better, never worse.
 
 - **SKOS altLabels** today; **SNOMED CT** codes can hang off `Joint`/`Injury`
   nodes (the spec's optional grounding) for cross-system clinical interop.
-- **FastAPI → OpenAPI** gives a typed, language-agnostic API contract.
+- **FastAPI → OpenAPI** gives a typed API contract.
 - **Neo4j → Bolt/Cypher**, exportable to **RDF/JSON-LD** (neosemantics) for
   semantic-web interop.
 - **Stable IDs** (exercises already carry UUIDs; concepts should too) let
-  external systems integrate by identity, not by label — which also unlocks i18n.
+  external systems integrate by identity, not by label.
 
 ## Scaling
 
@@ -73,22 +72,6 @@ production scaling risk is member data that grows with adoption and time.
 | LLM throughput | External model rate limits bound concurrency and token volume. | Use per-tenant budgets, request queueing, and prompt-cache reuse. |
 | Catalog eligibility | Catalog growth is not the main bottleneck, but eligibility queries still need predictable latency. | Index and paginate by muscle, movement pattern, equipment, and contraindication status. |
 
-## Internationalization (e.g. a French userbase)
-
-The reasoning core is **language-neutral by construction** — safety operates on
-node identity and edges, not text. Only two surfaces touch language:
-
-1. **Resolution input** — add French altLabels (`pectoraux`, `ischio-jambiers`)
-   via the *same alias mechanism already built*, and swap the embedding model to
-   a multilingual one (`bge-m3` / `multilingual-e5`; fastembed supports both).
-2. **Generation output** — Claude is natively multilingual; instruct target lang.
-
-The safety core needs **zero** changes. Honest caveat: concept nodes are
-currently keyed by their English `name`; the principled version keys by a
-language-neutral **concept id** (slug/URI) with labels hung off per language
-(`prefLabel@fr`, `altLabel@fr`). That's a contained refactor the graph makes
-easy — not done yet, but the design doesn't preclude it.
-
 ## Ontology grounding — what we pull, and why
 
 Our choices:
@@ -96,7 +79,7 @@ Our choices:
 - **SKOS** — the mapping layer. Gym-jargon `alt_labels` are `skos:altLabel`
   (resolver matches them deterministically); SNOMED codes are `skos:exactMatch`.
   This is the catalog-term ↔ ontology-concept bridge, and it's what makes the
-  resolver and i18n extensible.
+  resolver extensible.
 - **SNOMED CT** (via NCI EVS) — pulled **official codes for the 9 joints + the
   patellofemoral sub-structure + the 2 clinical conditions** in the seed data
   (e.g. knee `49076000`, patellofemoral stress syndrome `430725003`). Fetched
