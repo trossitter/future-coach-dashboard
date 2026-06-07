@@ -102,6 +102,20 @@ export function ProtocolsTeaser({ onClose }: ProtocolsTeaserProps) {
             </section>
           </div>
         </div>
+
+        <section className="protocols-outro" aria-label="Assign this protocol">
+          <div className="protocols-card">
+            <div className="eyebrow">COMING SOON</div>
+            <p className="protocols-card-copy">
+              Skill progressions, strength work, and coach judgment gathered into
+              one assignable protocol — adapt the Handstand, Brady, or Biles
+              protocol to any member, safely.
+            </p>
+            <button className="protocols-assign-cta" onClick={onClose}>
+              Assign to a member <span aria-hidden>→</span>
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );
