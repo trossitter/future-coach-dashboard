@@ -238,14 +238,19 @@ docker compose exec frontend npx tsc -b --pretty false
 
 Current coverage focuses on the critical paths:
 
-Built with Claude (Claude Code). AI was used to: scaffold the FastAPI/Neo4j and
-React structure, write Cypher and the LangGraph crews, generate the synthetic
-Dune-themed members, and draft docs — all under tight human direction on
-architecture (graph-owns-safety, deterministic resolver, model/latency choices).
-The LLM provider integration follows current best practice (structured outputs,
-streaming, durable token accounting, graceful no-key degradation; Anthropic also
-uses prompt caching). Decisions, trade-offs, and the safety invariant were
-human-reviewed and verified by the test + eval suites.
+- Resolver: exact, alias/fuzzy, vector fallback, abstention.
+- Safety: eligible set disjoint from contraindicated set, part-of traversal,
+  pattern contraindications, equipment feasibility, safe alternatives.
+- Interactive adjustment: deadlift exclusion, equipment polarity, clarify gates,
+  requested-but-filtered acknowledgement.
+- LLM provider facade: no-key degradation, active-provider key selection,
+  structured output, streaming deltas, and token accounting.
+- Fixture-backed demo cases:
+  [`backend/tests/fixtures/worked_examples.json`](backend/tests/fixtures/worked_examples.json)
+  executed by
+  [`backend/tests/test_worked_examples.py`](backend/tests/test_worked_examples.py).
+- Evaluation harness: resolver accuracy, retrieval relevance, safety invariant,
+  recommendation safe-set membership across synthetic members.
 
 ---
 
