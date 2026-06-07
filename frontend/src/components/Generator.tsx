@@ -76,7 +76,15 @@ function Section({
           <div className="ex-line">
             {editable && <span className="drag-handle" aria-hidden title="Drag to reorder">⠿</span>}
             <div className="ex-body">
-              <span className="ex-name">{p.name}</span>
+              <span className="ex-name">
+                {p.name}
+                {p.down_rank && (
+                  <span
+                    className="down-rank-chip"
+                    title="Stresses an injured joint — kept in, but used sparingly"
+                  >⚠ eases off the joint</span>
+                )}
+              </span>
               <span className="ex-rx">{p.sets} × {p.reps} · rest {p.rest_seconds}s</span>
             </div>
             {editable && (
@@ -303,7 +311,8 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
     if (!(result?.safe_pool || []).some((it: any) => it.id === poolItem.id)) return;
     const d = ADD_DEFAULTS[section];
     const next = cloneDisplayed();
-    next[section] = [...next[section], { id: poolItem.id, name: poolItem.name, ...d }];
+    next[section] = [...next[section],
+      { id: poolItem.id, name: poolItem.name, down_rank: !!poolItem.down_rank, ...d }];
     setEditedPlan(next);
   }
 

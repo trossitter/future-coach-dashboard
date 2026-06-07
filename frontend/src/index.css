@@ -222,6 +222,15 @@ button:hover:not(:disabled) { opacity: 0.86; }
 .wsection-title { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sub); padding-bottom: 8px; border-bottom: 1px solid var(--hair); margin-bottom: 10px; }
 .prescription { display: flex; flex-direction: column; padding: 7px 0; border-bottom: 1px solid rgba(20, 22, 26, 0.05); }
 .ex-name { font-size: 15px; }
+/* down-rank: a knee/joint-stressing move kept in the plan but flagged as used
+   sparingly — muted amber, in the same family as .badge.warn, never alarming */
+.down-rank-chip {
+  margin-left: 8px; font-size: 10px; letter-spacing: 0.04em; text-transform: none;
+  white-space: nowrap; vertical-align: middle;
+  padding: 1px 7px; border-radius: 999px;
+  background: rgba(176, 122, 60, 0.14); color: var(--amber);
+  border: 1px solid rgba(176, 122, 60, 0.28);
+}
 .ex-rx { font-size: 12px; color: var(--sub); margin-top: 2px; }
 
 /* editable plan — coach customization (reorder / delete / add from safe pool) */

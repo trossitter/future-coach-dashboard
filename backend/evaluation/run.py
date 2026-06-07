@@ -59,7 +59,11 @@ def eval_safety() -> tuple[list[str], int, int]:
     contra_violations = equip_violations = 0
     for mid in members:
         eligible = {e["id"] for e in safety.eligible(mid)}
-        contra = {c["id"] for c in safety.contraindicated(mid)}
+        # Joint-loaders are now ADMITTED (down-ranked), not excluded — only a
+        # PATTERN contraindication is still a hard exclude, so the invariant
+        # checks the eligible set is disjoint from pattern-contraindicated only.
+        contra = {c["id"] for c in safety.contraindicated(mid)
+                  if any(r["type"] == "pattern" for r in c["reasons"])}
         contra_violations += len(eligible & contra)
         bad = run(
             "MATCH (e:Exercise)-[:REQUIRES]->(eq:Equipment) WHERE e.id IN $ids "

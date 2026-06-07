@@ -100,7 +100,8 @@ def _rx(section: str, stage: str) -> tuple[int, str, int]:
 def _prescribe(c: dict, section: str, stage: str) -> dict:
     sets, reps, rest = _rx(section, stage)
     return {"id": c["id"], "name": c["name"], "section": section,
-            "sets": sets, "reps": reps, "rest_seconds": rest}
+            "sets": sets, "reps": reps, "rest_seconds": rest,
+            "down_rank": bool(c.get("down_rank"))}
 
 
 def _deterministic_plan(cands: list[dict], counts: dict, stage: str) -> dict:
@@ -350,7 +351,11 @@ def retrieve(state: GenState) -> dict:
         for e in eligible:
             m = meta.get(e["id"], {})
             boost = 0.1 * len(tm & set(m.get("muscles", []))) + 0.1 * len(tp & set(m.get("patterns", [])))
-            cands.append({**e, **m, "score": round(sem.get(e["id"], 0.0) + boost, 3)})
+            # Joint-loaders are kept but penalised so they sort to the bottom and
+            # are only chosen when the safe pool is thin. `down_rank` rides along
+            # (from safety.eligible) onto the candidate via the **e spread.
+            penalty = 0.5 if e.get("down_rank") else 0.0
+            cands.append({**e, **m, "score": round(sem.get(e["id"], 0.0) + boost - penalty, 3)})
         cands.sort(key=lambda c: c["score"], reverse=True)
         trace.add("tool", "safety.eligible (graph)", eligible=len(safe_ids))
         trace.add("tool", "vector.search", ranked=len(sem))
@@ -371,6 +376,13 @@ def assemble(state: GenState) -> dict:
         if plan_dict is None:
             plan_dict = _deterministic_plan(state["candidates"], counts, state["journey"].get("journey_stage", ""))
             degraded = not llm.is_available()
+        # Stamp the graph-derived down_rank flag onto every plan item from the
+        # candidate pool, so the LLM path (whose items lack it) badges identically
+        # to the deterministic path. Authoritative source: safety.eligible.
+        dr = {c["id"]: bool(c.get("down_rank")) for c in state["candidates"]}
+        for section in ("warmup", "main", "cooldown"):
+            for p in plan_dict.get(section, []):
+                p["down_rank"] = dr.get(p["id"], False)
     return {"plan": plan_dict, "degraded": degraded}
 
 
@@ -423,11 +435,20 @@ def _provenance(state: GenState, plan_dict: dict) -> list[dict]:
                 because.append(f"Targets {', '.join(sorted(hit_m))}")
             if hit_p:
                 because.append(f"Matches the {', '.join(sorted(hit_p))} work you asked for")
-            out.append({
+            safe_because = _safe_because(member_id, p["id"], excl_eq, extra_eq)
+            entry = {
                 "exercise_id": p["id"], "name": p["name"],
                 "chosen_because": because or ["Rounds out the session"],
-                "safe_because": _safe_because(member_id, p["id"], excl_eq, extra_eq),
-            })
+                "safe_because": safe_because,
+            }
+            if c.get("down_rank") or p.get("down_rank"):
+                entry["down_rank"] = True
+                sr = safety.safety_reasons(member_id, p["id"], excl_eq, extra_eq)
+                hit_j = sorted(set(sr.get("joints_loaded", [])) &
+                               set(sr.get("injured_joints", [])))
+                joint = hit_j[0] if hit_j else "an injured joint"
+                safe_because.append(f"Loads the {joint} — included sparingly")
+            out.append(entry)
     return out
 
 
@@ -471,7 +492,15 @@ def _filtered_out(member_id: str, intent: dict, limit: int = 5,
     id so an exercise dropped for BOTH reasons appears once with both reasons."""
     excl_eq = intent.get("exclude_equipment") or None
     extra_eq = intent.get("extra_equipment") or None
-    contra = safety.contraindicated(member_id)
+    # Joint-only contraindications are no longer "filtered for safety" — they're
+    # kept in the plan and down-ranked. Only PATTERN contraindications remain a
+    # hard exclude, so keep just those (strip joint reasons too, so an item that's
+    # excluded on pattern reports only the reason that actually removed it).
+    contra = []
+    for c in safety.contraindicated(member_id):
+        pat = [r for r in c["reasons"] if r["type"] == "pattern"]
+        if pat:
+            contra.append({**c, "reasons": pat})
     equip = safety.equipment_filtered(member_id, exclude_equipment=excl_eq,
                                       extra_equipment=extra_eq)
     # merge by id, concatenating reasons (an exercise can fail on joint AND kit)
@@ -956,7 +985,8 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         "safe_pool": [
             {"id": c["id"], "name": c["name"],
              "pattern": (c.get("patterns") or [""])[0],
-             "muscles": c.get("muscles", [])}
+             "muscles": c.get("muscles", []),
+             "down_rank": bool(c.get("down_rank"))}
             for c in final.get("candidates", [])
         ],
         # Exercises the coach explicitly named that the graph filtered out — shown
