@@ -269,6 +269,13 @@ button:hover:not(:disabled) { opacity: 0.86; }
 /* dislikes: read-only member context, not an interactive control */
 .dislike-chip { color: var(--sub); border-style: dashed; cursor: default; }
 .dislike-chip:hover { background: transparent; border-color: var(--hair); }
+/* requested-but-filtered: explain, never silently drop a coach's named ask */
+.requested-note { margin: 12px 0; display: grid; gap: 7px; }
+.requested-row { display: flex; gap: 9px; align-items: baseline; font-size: 13px;
+  padding: 9px 12px; border: 1px solid var(--hair); border-left: 3px solid var(--blue);
+  border-radius: 8px; background: rgba(124, 47, 61, 0.04); }
+.requested-tag { flex: none; font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--blue); padding-top: 2px; }
 
 /* panel header with inline action */
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

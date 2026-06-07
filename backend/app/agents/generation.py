@@ -748,6 +748,123 @@ def detect_equipment_clarifications(prompt: str, exclude_equipment: list[str],
     return unresolved
 
 
+# --- requested-but-filtered acknowledgment ----------------------------------
+# When a coach explicitly NAMES an exercise the safety filter then removes, we
+# don't silently drop it: we say so, with the reason + a safe swap. This never
+# overrides safety (the exercise stays out) — it just explains, the way the
+# clarify gate refuses to guess.
+
+# Equipment/modifier words in exercise names that don't, on their own, signal a
+# coach naming a movement ("dumbbell", "alternating", "overhead"). Kept out so
+# only movement-distinctive tokens (squat, lunge, jump, press, plank…) match.
+_NAME_TOKEN_STOP = {
+    "dumbbell", "barbell", "kettlebell", "band", "cable", "machine", "bench",
+    "bosu", "ball", "with", "from", "into", "onto", "alternating", "assisted",
+    "racked", "anchored", "neutral", "grip", "standing", "seated", "kneeling",
+    "half", "single", "double", "front", "back", "side", "low", "high", "loop",
+    "resistance", "weighted", "bodyweight", "wall", "floor", "mat", "med",
+    "reverse", "forward", "lateral", "overhead", "incline", "decline", "close",
+    "wide", "this", "that", "your", "their", "drive",
+}
+
+
+def _exercise_name_index() -> tuple[dict[str, set[str]], dict[str, str]]:
+    """(token/full-name -> {exercise ids}, id -> name). Tokens are de-pluralized
+    movement words from each exercise name; equipment/modifier words are dropped."""
+    idx: dict[str, set[str]] = {}
+    names: dict[str, str] = {}
+    for r in run("MATCH (e:Exercise) RETURN e.id AS id, e.name AS name"):
+        names[r["id"]] = r["name"]
+        nm = r["name"].lower()
+        idx.setdefault(nm, set()).add(r["id"])  # whole name (e.g. "jumping jacks")
+        for raw in nm.replace("-", " ").replace("(", " ").replace(")", " ").split():
+            w = _depluralize(raw)
+            if len(w) >= 4 and w not in _NAME_TOKEN_STOP:
+                idx.setdefault(w, set()).add(r["id"])
+    return idx, names
+
+
+def _required_equipment(ex_id: str) -> set[str]:
+    rows = run("MATCH (e:Exercise {id:$id})-[:REQUIRES]->(eq:Equipment) "
+               "RETURN collect(DISTINCT eq.name) AS r", id=ex_id)
+    return set(rows[0]["r"]) if rows else set()
+
+
+def _loads_avoided_joint(ex_id: str, avoid_joints: list[str]) -> list[str]:
+    if not avoid_joints:
+        return []
+    rows = run(
+        """
+        MATCH (ex:Exercise {id:$exid})-[:LOADS]->(loaded:Joint)
+        MATCH (aj:Joint) WHERE aj.name IN $avoid
+          AND ((loaded)-[:PART_OF*0..]->(aj) OR (aj)-[:PART_OF*0..]->(loaded))
+        RETURN collect(DISTINCT aj.name) AS hit
+        """,
+        exid=ex_id, avoid=avoid_joints,
+    )
+    return rows[0]["hit"] if rows else []
+
+
+def _why_one(member_id: str, ex_id: str, intent: dict, avoid_joints: list[str]) -> str | None:
+    """Short, graph-derived reason a NAMED exercise was filtered (None => it's
+    actually eligible). Session-aware: stored injury, session avoid-joint, then
+    equipment (session override then baseline)."""
+    skipped = safety.why_skipped(member_id, ex_id)
+    joint = next((r for r in skipped if r["reason"] == "injury_joint"), None)
+    if joint:
+        return f"it stresses their {joint.get('detail', 'injured joint')}"
+    patt = next((r for r in skipped if r["reason"] == "injury_pattern"), None)
+    if patt:
+        return f"it's {patt['via']} work, off-limits for their {patt.get('detail', 'injury')}"
+    hit = _loads_avoided_joint(ex_id, avoid_joints)
+    if hit:
+        return f"it loads the {', '.join(hit)} you're avoiding this session"
+    excl = set(intent.get("exclude_equipment") or [])
+    if excl:
+        need = excl & _required_equipment(ex_id)
+        if need:
+            return f"it needs {', '.join(sorted(need))}, set aside this session"
+    equip = next((r for r in skipped if r["reason"] == "equipment"), None)
+    if equip:
+        return f"it needs {equip['via']}, which isn't available"
+    return None
+
+
+def _requested_but_filtered(member_id: str, prompt: str, intent: dict,
+                            avoid_joints: list[str], safe_ids: list[str]) -> list[dict]:
+    """Exercises the coach named in the prompt that the graph filtered out, each
+    with the reason + a safe alternative. A named movement with ANY eligible match
+    is treated as satisfied (no nag). Capped, deterministic, no LLM."""
+    pl = f" {prompt.lower()} "
+    safe = set(safe_ids)
+    idx, names = _exercise_name_index()
+    # de-pluralized prompt words for whole-word matching, so a single-word token
+    # like "jump" doesn't match "jumping" (a different movement) via prefix.
+    pwords = {_depluralize(w.strip(".,;:!?()'\"")) for w in pl.split()}
+    named = [t for t in idx
+             if (" " in t and t in pl) or (" " not in t and t in pwords)]
+    out: dict[str, dict] = {}
+    # longer (full-name) tokens first, so we report the precise exercise and skip
+    # the broader single-word group that overlaps it.
+    for t in sorted(named, key=len, reverse=True):
+        ids = idx[t]
+        if ids & safe:           # the coach's request is met by an eligible match
+            continue
+        if ids & set(out):       # already reported something from this movement
+            continue
+        rep = sorted(ids, key=lambda i: names.get(i, ""))[0]
+        reason = _why_one(member_id, rep, intent, avoid_joints)
+        if not reason:           # not actually filtered — leave it alone
+            continue
+        alts = safety.alternatives(
+            member_id, rep, limit=1, avoid_joints=avoid_joints or None,
+            exclude_equipment=intent.get("exclude_equipment") or None,
+            extra_equipment=intent.get("extra_equipment") or None)
+        out[rep] = {"name": names.get(rep, rep), "reason": reason,
+                    "alternative": alts[0]["name"] if alts else None}
+    return list(out.values())[:3]
+
+
 def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
                    exclude_terms: list[str] | None = None,
                    avoid_joints: list[str] | None = None,
@@ -839,5 +956,9 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
              "muscles": c.get("muscles", [])}
             for c in final.get("candidates", [])
         ],
+        # Exercises the coach explicitly named that the graph filtered out — shown
+        # with reason + a safe swap, instead of silently dropping the request.
+        "requested_unavailable": _requested_but_filtered(
+            member_id, prompt, final["intent"], avoid_joints, final.get("safe_ids", [])),
     }
     return result, trace.as_list()

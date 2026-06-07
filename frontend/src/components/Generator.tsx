@@ -456,6 +456,20 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
         </div>
       )}
 
+      {result?.requested_unavailable?.length > 0 && (
+        <div className="requested-note">
+          {result.requested_unavailable.map((r: any, i: number) => (
+            <div key={i} className="requested-row">
+              <span className="requested-tag">Couldn’t include</span>
+              <span>
+                <b>{r.name}</b> — {r.reason}.
+                {r.alternative ? <> Safe swap: <b>{r.alternative}</b>.</> : null}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {result && (
         <>
           <div className="muted edit-hint">Customize this plan — drag to reorder, × to remove, add only from the safe pool.</div>
