@@ -1,0 +1,30 @@
+[
+  {
+    "name": "jordan_injury_limited_equipment",
+    "member_id": "mbr_01HX9JORDAN",
+    "prompt": "Lower-body strength, protect the knee, no barbell, only dumbbells and a kettlebell, exclude deadlifts",
+    "time_minutes": 45,
+    "expect": {
+      "journey_stage": "at_risk",
+      "exclude_equipment": ["Barbell"],
+      "extra_equipment": ["Dumbbell", "Kettlebell"],
+      "session_exclude_terms": ["deadlift"],
+      "unsafe_min": 1,
+      "equipment_min": 1,
+      "unsafe_name_tokens": ["lunge", "step", "jump"]
+    }
+  },
+  {
+    "name": "duncan_limited_equipment_no_injury",
+    "member_id": "mbr_duncan",
+    "prompt": "Full-body strength, only dumbbells and a kettlebell, no barbell, no machines",
+    "time_minutes": 45,
+    "expect": {
+      "journey_stage": "progressing",
+      "exclude_equipment": ["Barbell"],
+      "extra_equipment": ["Dumbbell", "Kettlebell"],
+      "unsafe_exact": 0,
+      "equipment_min": 1
+    }
+  }
+]

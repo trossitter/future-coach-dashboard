@@ -28,3 +28,4 @@ models/
 
 # Internal build handoffs — kept local, never part of the submitted build
 docs/HANDOFF-*.md
+.claude/
