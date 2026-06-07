@@ -50,6 +50,7 @@ class GenState(TypedDict, total=False):
     provenance: list[dict]
     filtered: list[dict]
     filtered_summary: dict
+    substitutions: list[dict]
     narration: str
     degraded: bool
     revisions: int
@@ -362,20 +363,96 @@ def retrieve(state: GenState) -> dict:
     return {"candidates": cands, "safe_ids": safe_ids}
 
 
+# Score bump applied to a substitute candidate so deterministic assembly (and the
+# top-of-list the LLM sees) reliably places it. Large enough to dominate semantic
+# score, so the safe swap actually lands IN the plan rather than just being noted.
+_SUBSTITUTE_BOOST = 10.0
+
+
+def _substitutions(member_id: str, intent: dict, candidates: list[dict],
+                   *, avoid_joints: list[str] | None = None) -> list[dict]:
+    """Auto-substitution: for each EQUIPMENT-filtered exercise that matches the
+    coach's intent (overlaps target muscles/patterns), find the best SAFE
+    same-pattern/muscle alternative that is ALREADY in the safe candidate pool, so
+    it can be placed IN the plan as an explicit swap (PRD: "no barbell → drop
+    barbell-only exercises and find equivalent alternatives").
+
+    Safety stays deterministic: the dropped set comes from `safety.equipment_filtered`
+    (already injury-safe), and a substitute is only ever taken from the eligible
+    candidate pool via `safety.alternatives` (which honours the same session
+    constraints), so a swap is never itself contraindicated or excluded. Returns
+    dropped→substitute records; one substitute is never reused for two drops."""
+    tm = set(intent.get("target_muscles", []))
+    tp = set(intent.get("target_patterns", []))
+    if not (tm or tp):
+        return []
+    excl_eq = intent.get("exclude_equipment") or None
+    extra_eq = intent.get("extra_equipment") or None
+    pool = {c["id"] for c in candidates}        # the safe candidate pool, by id
+    dropped = safety.equipment_filtered(member_id, exclude_equipment=excl_eq,
+                                        extra_equipment=extra_eq)
+    if not dropped:
+        return []
+    meta = _exercise_meta([d["id"] for d in dropped])
+    out: list[dict] = []
+    used_subs: set[str] = set()
+    for d in sorted(dropped, key=lambda c: c["name"]):
+        m = meta.get(d["id"], {})
+        if not (tm & set(m.get("muscles", [])) or tp & set(m.get("patterns", []))):
+            continue   # not what the coach asked for — don't substitute it
+        alts = safety.alternatives(member_id, d["id"], limit=8,
+                                   avoid_joints=avoid_joints,
+                                   exclude_equipment=excl_eq, extra_equipment=extra_eq)
+        # first SAFE alternative that's actually in the eligible candidate pool
+        # (so it respects dislikes / name-exclusions too) and not already claimed.
+        sub = next((a for a in alts
+                    if a["id"] in pool and a["id"] not in used_subs), None)
+        if not sub:
+            continue
+        used_subs.add(sub["id"])
+        via = sorted({v for r in d["reasons"] if r["type"] == "equipment"
+                      for v in r.get("via", [])})
+        out.append({
+            "dropped": d["name"], "dropped_id": d["id"],
+            "substitute": sub["name"], "substitute_id": sub["id"],
+            "reason": f"needs {', '.join(via)}" if via else "needs unavailable equipment",
+        })
+    return out
+
+
 def assemble(state: GenState) -> dict:
     trace = state["trace"]
     counts = _counts(state["time_minutes"])
+    stage = state["journey"].get("journey_stage", "")
+    # Auto-substitution: bias assembly so a safe swap for an equipment-dropped
+    # exercise lands IN the plan. Substitutes are taken ONLY from the safe pool, so
+    # boosting their score can never introduce something contraindicated.
+    subs = _substitutions(state["member_id"], state["intent"], state["candidates"],
+                          avoid_joints=state.get("avoid_joints"))
+    sub_by_id = {s["substitute_id"]: s for s in subs}
+    cands = state["candidates"]
+    if sub_by_id:
+        cands = [{**c, "score": round(c.get("score", 0.0) + _SUBSTITUTE_BOOST, 3)}
+                 if c["id"] in sub_by_id else c for c in cands]
+        cands.sort(key=lambda c: c["score"], reverse=True)
     with trace.step("agent", "assembler"):
         plan_dict, degraded = None, False
         if state.get("force_deterministic"):
-            plan_dict = _deterministic_plan(state["candidates"], counts, state["journey"].get("journey_stage", ""))
+            plan_dict = _deterministic_plan(cands, counts, stage)
             trace.add("critic", "rebuilt deterministically")
         elif llm.is_available():
             plan_dict = _llm_plan(state["prompt"], state["intent"], state["journey"],
-                                  state["candidates"], counts)
+                                  cands, counts)
         if plan_dict is None:
-            plan_dict = _deterministic_plan(state["candidates"], counts, state["journey"].get("journey_stage", ""))
+            plan_dict = _deterministic_plan(cands, counts, stage)
             degraded = not llm.is_available()
+        # Auto-substitution first (it may PLACE new items), then stamp down_rank so
+        # every plan item — including any placed substitute — carries the flag.
+        if sub_by_id:
+            _apply_substitutes(plan_dict, sub_by_id, cands, counts, stage)
+        if subs:
+            trace.add("decision", "auto-substitution",
+                      swaps=[f"{s['dropped']} → {s['substitute']}" for s in subs])
         # Stamp the graph-derived down_rank flag onto every plan item from the
         # candidate pool, so the LLM path (whose items lack it) badges identically
         # to the deterministic path. Authoritative source: safety.eligible.
@@ -383,7 +460,38 @@ def assemble(state: GenState) -> dict:
         for section in ("warmup", "main", "cooldown"):
             for p in plan_dict.get(section, []):
                 p["down_rank"] = dr.get(p["id"], False)
-    return {"plan": plan_dict, "degraded": degraded}
+    return {"plan": plan_dict, "degraded": degraded, "substitutions": subs}
+
+
+def _apply_substitutes(plan_dict: dict, sub_by_id: dict[str, dict],
+                       cands: list[dict], counts: dict, stage: str) -> None:
+    """Tag any placed substitute with `substitute_for`, and place any not-yet-placed
+    substitute if its section has room (best-effort for the LLM path; the score
+    boost already lands them deterministically). Never displaces an existing item —
+    a swap that doesn't fit is still reported in `substitutions`."""
+    placed = {p["id"] for s in ("warmup", "main", "cooldown")
+              for p in plan_dict.get(s, [])}
+    # tag the items already in the plan
+    for section in ("warmup", "main", "cooldown"):
+        for p in plan_dict.get(section, []):
+            s = sub_by_id.get(p["id"])
+            if s:
+                p["substitute_for"] = s["dropped"]
+    # place any substitute that didn't make it, if there's room in its section
+    cand_by_id = {c["id"]: c for c in cands}
+    for sid, s in sub_by_id.items():
+        if sid in placed:
+            continue
+        c = cand_by_id.get(sid)
+        if not c:
+            continue
+        section = _bucket(c.get("patterns", []))
+        target = plan_dict.setdefault(section, [])
+        if len(target) < counts.get(section, 0):
+            item = _prescribe(c, section, stage)
+            item["substitute_for"] = s["dropped"]
+            target.append(item)
+            placed.add(sid)
 
 
 def safety_review(state: GenState) -> dict:
@@ -975,6 +1083,11 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         "provenance": final.get("provenance", []),
         "filtered_out": final.get("filtered", []),
         "filtered_summary": final.get("filtered_summary", {}),
+        # Auto-substitution: equipment-dropped exercises matching the coach's
+        # intent, each paired with a SAFE same-pattern swap that was placed IN the
+        # plan (the prescribed item carries `substitute_for`). Separate result key —
+        # the per-item provenance loop is owned by another agent.
+        "substitutions": final.get("substitutions", []),
         "journey_stage": final["journey"].get("journey_stage", "unknown"),
         "narration": final.get("narration", ""),
         "degraded": final.get("degraded", False),

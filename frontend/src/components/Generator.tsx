@@ -86,6 +86,11 @@ function Section({
                 )}
               </span>
               <span className="ex-rx">{p.sets} × {p.reps} · rest {p.rest_seconds}s</span>
+              {p.substitute_for && (
+                <span className="ex-sub" title={`Safe swap for ${p.substitute_for}`}>
+                  ↔ instead of {p.substitute_for}
+                </span>
+              )}
             </div>
             {editable && (
               <button
@@ -555,6 +560,15 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
               </button>
             )}
           </div>
+
+          {result.substitutions?.length > 0 && (
+            <div className="muted subs-note">
+              Auto-substituted:{" "}
+              {result.substitutions
+                .map((s: any) => `${s.dropped} → ${s.substitute}`)
+                .join(" · ")}
+            </div>
+          )}
 
           <div className="evidence-row">
             <button className="link" onClick={() => setShow(show === "prov" ? null : "prov")}>
