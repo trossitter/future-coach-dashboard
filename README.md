@@ -252,17 +252,6 @@ Current coverage focuses on the critical paths:
 
 ---
 
-## How I Used AI
-
-AI assisted with scaffolding, Cypher, LangGraph wiring, UI iteration, synthetic
-member expansion, and documentation. The architecture choices were kept explicit:
-Neo4j owns truth, graph traversal owns safety, vectors are fallback retrieval,
-and LLM output is validated or treated as narration only. The critical behaviors
-are covered by tests and the evaluation harness rather than trusted because a
-model wrote them.
-
----
-
 ## Production Evaluation
 
 - **Safety false negatives:** no contraindicated exercise may reach a plan.
@@ -291,5 +280,7 @@ docs/      Schema and design notes
 
 Status: KG1 + KG2, deterministic safety, 3-pass resolution, Neo4j vector indexes,
 LangGraph generation and copilot crews, SSE streaming, provenance, graph
-evidence, charts, source-agnostic member context, fixture-backed worked examples,
+evidence, charts, source-agnostic member context, fixture-backed demo tests,
 tests, and one-command Docker.
+
+AI usage disclosure: [`AI_USAGE.md`](AI_USAGE.md).
