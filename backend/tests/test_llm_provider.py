@@ -19,6 +19,9 @@ ENV_KEYS = [
     "MODEL_COPILOT",
     "CLAUDE_MODEL",
     "LLM_TOKEN_BUDGET",
+    "LOCAL_BASE_URL",
+    "LOCAL_MODEL",
+    "LOCAL_API_KEY",
 ]
 
 
@@ -216,4 +219,51 @@ def test_venice_structured_output_streaming_and_accounting(monkeypatch):
     assert stream_call["stream"] is True
     assert stream_call["stream_options"] == {"include_usage": True}
     assert stream_call["max_completion_tokens"] == 55
+    assert llm._tokens_used == 29
+
+
+def test_local_provider_is_available_on_base_url_without_a_key(monkeypatch):
+    """The local path gates on a configured endpoint, not a key — a local server
+    needs none — so the LLM features run with no hosted credential."""
+    llm = load_llm(
+        monkeypatch,
+        LLM_PROVIDER="local",
+        LOCAL_BASE_URL="http://localhost:11434/v1",
+    )
+    assert llm._provider_name() == "local"
+    assert llm.is_available() is True
+
+    # No endpoint configured -> unavailable, degrade to the deterministic path.
+    llm = load_llm(monkeypatch, LLM_PROVIDER="local", LOCAL_BASE_URL="")
+    assert llm.is_available() is False
+
+
+def test_local_structured_output_uses_one_model_and_no_vendor_extras(monkeypatch):
+    """Local routes every role through the single LOCAL_MODEL and sends no
+    Venice-specific extra_body — otherwise the wire format matches Venice."""
+    llm = load_llm(
+        monkeypatch,
+        LLM_PROVIDER="local",
+        LOCAL_BASE_URL="http://localhost:11434/v1",
+        LOCAL_MODEL="local-model",
+    )
+    fake = FakeOpenAIClient()
+    provider = llm._provider()
+    monkeypatch.setattr(provider, "_client", lambda: fake)
+    monkeypatch.setattr(llm, "_db_add", lambda _delta: None)
+    llm._tokens_used = 0
+
+    parsed = llm.parse("router", "question", RouteDecision, max_tokens=123)
+    assert parsed == RouteDecision(intent="sleep", confidence=0.92, clarify_question="")
+    parse_call = fake.completions.calls[-1]
+    assert parse_call["model"] == "local-model"
+    assert parse_call["extra_body"] == {}
+    assert llm._tokens_used == 12
+
+    llm.complete("narrate", "payload", max_tokens=44)
+    assert fake.completions.calls[-1]["model"] == "local-model"
+
+    chunks = list(llm.stream("copilot answerer", "payload", max_tokens=55))
+    assert chunks == ["hel", "lo"]
+    assert fake.completions.calls[-1]["model"] == "local-model"
     assert llm._tokens_used == 29

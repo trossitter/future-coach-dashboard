@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     model_intent: str = "qwen3-next-80b"
     model_narrate: str = "qwen3-next-80b"
     model_copilot: str = "qwen3-next-80b"
+    # Local / bring-your-own-model path (LLM_PROVIDER=local). Any OpenAI-compatible
+    # server works — Ollama, LM Studio, llama.cpp's server, vLLM — so an evaluator
+    # can run the LLM features with NO hosted key and no per-token cost. (A ChatGPT
+    # Plus / Claude Pro *subscription* cannot legally power a third-party app; this
+    # is the keyless alternative.) The default points at the host's Ollama as seen
+    # from inside Docker; on Linux use the host IP instead of host.docker.internal.
+    # local_api_key is usually unset (local servers need none) — set it only for a
+    # hosted OpenAI-compatible endpoint where you bring your own key.
+    local_base_url: str = "http://host.docker.internal:11434/v1"
+    local_model: str = "llama3.1"
+    local_api_key: str = ""
     # The graph owns the reasoning/safety, so the LLM only does light structuring
     # + phrasing — Haiku is the right fit for the ~5s target and token efficiency.
     # Override with CLAUDE_MODEL=claude-opus-4-8 (or sonnet-4-6) for more polish.
