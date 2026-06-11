@@ -49,6 +49,11 @@ def test_fixture_backed_demo_examples_stay_graph_safe(
     assert result["journey_stage"] == case["expect"]["journey_stage"]
 
     intent = result["intent"]
+    if case["member_id"] == "mbr_01HX9JORDAN":
+        assert result["intent"].get("preference_notes"), (
+            "Jordan's preference_notes must be threaded into intent — "
+            "see POSTMORTEM.md: preference_notes ingested but never read"
+        )
     for eq in case["expect"].get("exclude_equipment", []):
         assert eq in intent["exclude_equipment"]
     for eq in case["expect"].get("extra_equipment", []):
