@@ -181,7 +181,7 @@ function Section({
   );
 }
 
-export function Generator({ memberId, memberName, injuries, equipment, dislikes }: any) {
+export function Generator({ memberId, memberName, injuries, equipment, dislikes, preferenceNotes }: any) {
   const [prompt, setPrompt] = useState("");
   const [time, setTime] = useState(45);
   const [loading, setLoading] = useState(false);
@@ -410,6 +410,13 @@ export function Generator({ memberId, memberName, injuries, equipment, dislikes 
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {preferenceNotes && (
+        <div className="equip-chips pref-note">
+          <span className="equip-label">Preferences</span>
+          <p className="pref-note-text">{preferenceNotes}</p>
         </div>
       )}
 
