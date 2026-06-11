@@ -283,9 +283,10 @@ Current coverage focuses on the critical paths:
   stops. Joint-only stress is admitted but down-ranked and badged in provenance,
   so a request like "lower-body, protect the knee" can still return carefully
   selected lower-body work instead of drifting away from the coach's target.
-- **Hand-written frontend types.** Backend contracts are Pydantic and OpenAPI
-  exposed, but the frontend uses hand-written TypeScript shapes in places. The
-  next hardening step is generated TS from the API contract.
+- **Frontend types generated from OpenAPI.** Request/response shapes in
+  `frontend/src/api.gen.ts` are generated from the FastAPI OpenAPI schema
+  (Pydantic is the single source of truth). Hand-written types remain only for
+  internal UI state not tied to the API contract.
 - **Catalog scale vs. member scale.** The exercise catalog is finite and
   indexable. The real production load is members, member history, chat embeddings,
   and LLM throughput; see `docs/DESIGN-NOTES.md`.
@@ -322,7 +323,8 @@ docs/      Schema and design notes
 
 Status: KG1 + KG2, deterministic safety, 3-pass resolution, Neo4j vector indexes,
 LangGraph generation and copilot crews, SSE streaming, provenance, graph
-evidence, charts, source-agnostic member context, fixture-backed demo tests,
-tests, and one-command Docker.
+evidence, charts, source-agnostic member context, OpenAPI-generated frontend
+types, local/BYO-key LLM provider, fixture-backed demo tests, and one-command
+Docker.
 
 AI usage disclosure: [`AI_USAGE.md`](AI_USAGE.md).
