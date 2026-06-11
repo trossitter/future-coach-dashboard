@@ -73,7 +73,8 @@
           "extra_equipment": [
             "Dumbbell",
             "Kettlebell"
-          ]
+          ],
+          "bodyweight_only": false
         },
         "filtered_summary": {
           "total": 23,
@@ -360,6 +361,12 @@
             "needs": []
           },
           {
+            "kind": "decision",
+            "name": "equipment context",
+            "situation": "n/a",
+            "bodyweight_only": false
+          },
+          {
             "kind": "agent",
             "name": "clarify_gate"
           },
@@ -377,7 +384,8 @@
             "extra": [
               "Dumbbell",
               "Kettlebell"
-            ]
+            ],
+            "bodyweight_only": false
           },
           {
             "kind": "agent",
@@ -447,7 +455,8 @@
           "extra_equipment": [
             "Dumbbell",
             "Kettlebell"
-          ]
+          ],
+          "bodyweight_only": false
         },
         "filtered_summary": {
           "total": 33,
@@ -735,6 +744,12 @@
             "needs": []
           },
           {
+            "kind": "decision",
+            "name": "equipment context",
+            "situation": "n/a",
+            "bodyweight_only": false
+          },
+          {
             "kind": "agent",
             "name": "clarify_gate"
           },
@@ -752,7 +767,8 @@
             "extra": [
               "Dumbbell",
               "Kettlebell"
-            ]
+            ],
+            "bodyweight_only": false
           },
           {
             "kind": "agent",

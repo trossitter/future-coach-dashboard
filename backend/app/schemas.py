@@ -48,6 +48,26 @@ class RouteDecision(BaseModel):
         description="if the question is ambiguous, a short either/or question for the coach")
 
 
+class EquipmentContext(BaseModel):
+    """LLM-routed equipment-context classification. The model decides ONLY whether
+    to ask the guide about equipment — it never sets the constraint itself. The
+    guide's answer re-enters as deterministic equipment overrides, so the graph
+    filter stays the sole arbiter of what's feasible (the LLM gathers, the human
+    decides). This is why a brittle hardcoded phrase list isn't needed: 'traveling',
+    'in a hotel', 'at an Airbnb', 'visiting family' all generalize without
+    enumeration."""
+    situation: str = Field(
+        description="exactly one of: bodyweight_only (clearly no equipment at all — "
+        "'bodyweight only', 'no equipment'), ambiguous (an equipment context we "
+        "can't resolve — traveling, a hotel, home, a park, away from the gym — where "
+        "the kit on hand is unknown), or none (no equipment constraint implied)")
+    confidence: float = Field(description="0.0-1.0 confidence in this classification")
+    clarify_question: str = Field(
+        default="",
+        description="when ambiguous, a short friendly question asking what equipment "
+        "is available this session")
+
+
 class Prescription(BaseModel):
     id: str
     name: str

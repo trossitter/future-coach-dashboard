@@ -22,7 +22,7 @@ from langgraph.graph import END, StateGraph
 from .. import llm, longitudinal, resolver, safety
 from ..db import run
 from ..observability import Trace
-from ..schemas import WorkoutPlan
+from ..schemas import EquipmentContext, WorkoutPlan
 
 ASSEMBLER_SYSTEM = (
     "You assemble a safe, structured workout from a PRE-VETTED candidate list. "
@@ -41,6 +41,7 @@ class GenState(TypedDict, total=False):
     avoid_joints: list[str]
     exclude_equipment: list[str]
     extra_equipment: list[str]
+    bodyweight_only: bool
     trace: Trace
     journey: dict
     intent: dict
@@ -250,10 +251,16 @@ def plan(state: GenState) -> dict:
         exclude_eq, extra_eq = _resolve_equipment(state["prompt"])
         intent["exclude_equipment"] = sorted({*exclude_eq, *state.get("exclude_equipment", [])})
         intent["extra_equipment"] = sorted({*extra_eq, *state.get("extra_equipment", [])})
+        # Blanket "no equipment / bodyweight only" — a real structured constraint,
+        # not a per-item exclusion. Carried separately so the retriever can drop
+        # every equipment-requiring exercise, not just specifically-named kit.
+        intent["bodyweight_only"] = _wants_bodyweight_only(state["prompt"]) \
+            or bool(state.get("bodyweight_only"))
         trace.add("tool", "resolver + longitudinal (deterministic planner)",
                   stage=journey.get("journey_stage"))
         trace.add("decision", "equipment overrides",
-                  exclude=intent["exclude_equipment"], extra=intent["extra_equipment"])
+                  exclude=intent["exclude_equipment"], extra=intent["extra_equipment"],
+                  bodyweight_only=intent["bodyweight_only"])
     return {"journey": journey, "intent": intent}
 
 
@@ -302,6 +309,67 @@ def _resolve_equipment(prompt: str) -> tuple[list[str], list[str]]:
     """Resolve equipment polarity from the prompt against the graph's Equipment
     surface forms. Thin DB-backed wrapper over `_classify_equipment`."""
     return _classify_equipment(prompt, _equipment_surface())
+
+
+# Blanket "no kit at all" phrases. The per-item polarity scan above only excludes
+# NAMED Equipment nodes ("no barbell"), so a generic "no equipment" used to parse
+# to an EMPTY exclusion list and silently filter nothing. These phrases instead
+# resolve to a real structured intent (`bodyweight_only`) — keep only exercises
+# that require no equipment. Distinct from "no weights" (a weighted-kit subset
+# that may still leave bands/mat available), which we deliberately do NOT treat
+# as bodyweight-only.
+_BODYWEIGHT_ONLY_CUES = (
+    "no equipment", "without equipment", "no gear", "without gear", "no kit",
+    "without kit", "bodyweight only", "body weight only", "bodyweight-only",
+    "just bodyweight", "only bodyweight", "bodyweight workout",
+    "calisthenics only", "no equipment at all", "nothing at all",
+)
+
+
+def _wants_bodyweight_only(prompt: str) -> bool:
+    """True when the prompt asks for a session needing no equipment at all. This is
+    the blanket constraint a generic "no equipment" maps to — the structured form
+    that actually filters, vs. an empty per-item exclusion that filters nothing.
+
+    This deterministic phrase scan is the OFFLINE FALLBACK only: the primary path
+    is `detect_equipment_context` (LLM-routed), which generalizes beyond an
+    enumerated list. When the LLM is unavailable (no key / budget exhausted) we
+    still catch the explicit phrasing here, fail-safe."""
+    pl = f" {prompt.lower()} "
+    return any(cue in pl for cue in _BODYWEIGHT_ONLY_CUES)
+
+
+# Confidence floor for acting on the LLM's equipment-context read — below this we
+# don't ask (degrade to the deterministic phrase scan), so a low-confidence guess
+# never injects a spurious clarification into the hot path.
+_EQUIP_CONTEXT_MIN_CONFIDENCE = 0.6
+
+_EQUIP_CONTEXT_SYSTEM = (
+    "You classify a fitness coach's request by the EQUIPMENT situation it implies, "
+    "so the app knows whether to ASK the coach what gear is on hand. You are NOT "
+    "choosing exercises or equipment. Return exactly one situation:\n"
+    "- bodyweight_only: the request clearly needs no equipment at all "
+    "(\"bodyweight only\", \"no equipment\", \"just calisthenics\").\n"
+    "- ambiguous: the request implies an equipment context we can't pin down — "
+    "traveling, in a hotel, at an Airbnb, visiting family, at home, at a park, away "
+    "from the gym — where what's actually available is unknown. Give a short, "
+    "friendly clarify_question asking what equipment is on hand this session.\n"
+    "- none: no equipment constraint is implied (a normal gym request).\n"
+    "When torn between ambiguous and none, prefer ambiguous — asking is cheap and "
+    "safe; silently assuming a full gym is the bug we're avoiding."
+)
+
+
+def detect_equipment_context(prompt: str) -> EquipmentContext | None:
+    """LLM-routed equipment-context read. Returns an EquipmentContext, or None when
+    the LLM is unavailable (caller falls back to the deterministic phrase scan).
+
+    The LLM only proposes WHETHER to ask and drafts the question — it never sets
+    the constraint. The coach's answer re-enters as deterministic equipment
+    overrides, so safety stays a pure graph decision. This is the de-hardcoded
+    path: 'in a hotel', 'on the road', 'at my parents' all route to a clarify
+    without being enumerated anywhere."""
+    return llm.parse(_EQUIP_CONTEXT_SYSTEM, prompt, EquipmentContext, max_tokens=200)
 
 
 # Lead-ins that turn a following noun into a NAME-level exclusion — "exclude
@@ -403,7 +471,8 @@ def retrieve(state: GenState) -> dict:
         eligible = safety.eligible(member_id, exclude_terms=intent.get("exclude_terms") or None,
                                    avoid_joints=state.get("avoid_joints") or None,
                                    exclude_equipment=intent.get("exclude_equipment") or None,
-                                   extra_equipment=intent.get("extra_equipment") or None)
+                                   extra_equipment=intent.get("extra_equipment") or None,
+                                   bodyweight_only=intent.get("bodyweight_only") or False)
         safe_ids = [e["id"] for e in eligible]
         meta = _exercise_meta(safe_ids)
         sem = {r["id"]: r["score"] for r in resolver.semantic_exercise_search(state["prompt"], k=50)}
@@ -1084,9 +1153,24 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
         in_scope = has_fitness_signal(member_id, prompt)
         todo = detect_clarifications(member_id, prompt, avoid_joints, ignore_joints)
         equip_todo = detect_equipment_clarifications(prompt, exclude_equipment, extra_equipment)
+        # Equipment-context routing (LLM-proposed, human-decided). Skip entirely
+        # when the coach already pinned equipment this session (override lists) or
+        # used explicit "no equipment" phrasing — there's nothing to ask. Otherwise
+        # let the LLM read for an unresolved context ("traveling", "in a hotel").
+        explicit_bodyweight = _wants_bodyweight_only(prompt)
+        equip_specified = bool(exclude_equipment or extra_equipment)
+        equip_ctx = (None if equip_specified or explicit_bodyweight
+                     else detect_equipment_context(prompt))
+        ctx_confident = (equip_ctx is not None
+                         and equip_ctx.confidence >= _EQUIP_CONTEXT_MIN_CONFIDENCE)
+        bodyweight_only = explicit_bodyweight or (
+            ctx_confident and equip_ctx.situation == "bodyweight_only")
         trace.add("decision", "fitness request?", in_scope=in_scope)
         trace.add("decision", "ambiguous avoidance?", needs=todo)
         trace.add("decision", "unknown equipment mention?", needs=equip_todo)
+        trace.add("decision", "equipment context",
+                  situation=(equip_ctx.situation if equip_ctx else "n/a"),
+                  bodyweight_only=bodyweight_only)
     # Off-topic / empty prompt → ask what to train rather than inventing a default.
     if not in_scope:
         name = _member_name(member_id)
@@ -1132,10 +1216,27 @@ def run_generation(member_id: str, prompt: str, time_minutes: int = 45,
                 ],
             },
         }, trace.as_list())
+    # Ambiguous equipment context ("traveling", "in a hotel") → ask what's on hand
+    # rather than silently assuming a full gym. The LLM only flagged the ambiguity
+    # and drafted the question; the coach's answer re-enters as deterministic
+    # equipment overrides on the next call (parsed by the equipment polarity scan).
+    if ctx_confident and equip_ctx.situation == "ambiguous":
+        name = _member_name(member_id)
+        question = equip_ctx.clarify_question.strip() or (
+            f"What equipment will {name} have for this session?")
+        return ({
+            "member_id": member_id,
+            "clarification": {
+                "kind": "equipment_context",
+                "equipment": [],
+                "questions": [question],
+            },
+        }, trace.as_list())
     init: GenState = {
         "member_id": member_id, "prompt": prompt, "time_minutes": time_minutes,
         "exclude_terms": exclude_terms or [], "avoid_joints": avoid_joints,
         "exclude_equipment": exclude_equipment, "extra_equipment": extra_equipment,
+        "bodyweight_only": bodyweight_only,
         "trace": trace, "revisions": 0,
     }
     final = GRAPH.invoke(init)
