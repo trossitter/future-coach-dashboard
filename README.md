@@ -123,6 +123,18 @@ MODEL_NARRATE=qwen3-next-80b
 MODEL_COPILOT=qwen3-next-80b
 ```
 
+To run the LLM features with **no hosted key and no per-token cost**, point at a
+local OpenAI-compatible server — Ollama, LM Studio, llama.cpp, or vLLM. (A
+ChatGPT/Claude *subscription* can't legally power a third-party app; this is the
+keyless alternative.) Start the model on the host (`ollama run llama3.1`), then:
+
+```env
+LLM_PROVIDER=local
+LOCAL_BASE_URL=http://host.docker.internal:11434/v1   # host's server, from Docker
+LOCAL_MODEL=llama3.1
+# LOCAL_API_KEY=        # only for a hosted OpenAI-compatible endpoint (BYO key)
+```
+
 
 ---
 
