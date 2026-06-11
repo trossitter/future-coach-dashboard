@@ -294,6 +294,11 @@ button:hover:not(:disabled) { opacity: 0.86; }
 /* dislikes: read-only member context, not an interactive control */
 .dislike-chip { color: var(--sub); border-style: dashed; cursor: default; }
 .dislike-chip:hover { background: transparent; border-color: var(--hair); }
+.pref-note-text {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-2, #666);
+}
 /* requested-but-filtered: explain, never silently drop a coach's named ask */
 .requested-note { margin: 12px 0; display: grid; gap: 7px; }
 .requested-row { display: flex; gap: 9px; align-items: baseline; font-size: 13px;
@@ -478,7 +483,10 @@ button:hover:not(:disabled) { opacity: 0.86; }
 }
 .protocols-assign-card {
   position: absolute;
-  left: 66%;
+  /* centered under the title's right half so the card's right edge lands ~in
+     line with the end of "PROTOCOL"; nudge this % to taste (lower = further
+     left). The title is fluid (vw-based), so this is a visual, not exact, hit. */
+  left: 59%;
   top: calc(50% + clamp(126px, 16.5vw, 216px));
   width: min(430px, calc(100vw - 40px));
   padding: 14px 20px 16px;

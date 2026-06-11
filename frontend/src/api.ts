@@ -1,3 +1,12 @@
+import type { components } from "./api.gen";
+
+// Request contracts are GENERATED from the backend's OpenAPI schema (which is
+// generated from the Pydantic models) — Pydantic is the single source of truth.
+// Regenerate after changing a request model: `npm run gen:api` (backend running).
+// Do not hand-edit src/api.gen.ts.
+export type GenerateRequest = components["schemas"]["GenerateRequest"];
+export type CopilotRequest = components["schemas"]["CopilotRequest"];
+
 const BASE =
   (import.meta as { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE ||
   "http://localhost:8000";

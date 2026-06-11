@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { postSSE, getJSON } from "../api";
+import { postSSE, getJSON, type CopilotRequest } from "../api";
 import { ChartView } from "./Charts";
 
 // the live copilot thread is persisted per member so it survives closing the
@@ -83,7 +83,8 @@ export function Copilot({ memberId, compact }: any) {
       .map((m) => ({ role: m.role, text: m.role === "coach" ? m.text : sanitize(m.text) }));
     setMessages((m) => [...m, { role: "coach", text: q },
                             { role: "copilot", text: "", intent: "", facts: [] }]);
-    await postSSE("/copilot", { member_id: memberId, question: q, history }, (ev, data) => {
+    const body: CopilotRequest = { member_id: memberId, question: q, history };
+    await postSSE("/copilot", body, (ev, data) => {
       // pure updaters (no mutation) — mutating shared state doubled under StrictMode
       if (ev === "context") {
         setMessages((m) => m.map((msg, i) =>

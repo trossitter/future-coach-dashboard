@@ -21,8 +21,8 @@
     "preferred_session_minutes": 50,
     "training_days_per_week": 4,
     "preferred_days": ["Mon", "Wed", "Thu", "Sat"],
-    "dislikes": ["Deadlift", "Burpees"],
-    "notes": "Prefers dumbbell and kettlebell work; trains at home. Dislikes high-impact jumping."
+    "dislikes": ["Deadlift", "Burpees", "high-impact jumping"],
+    "notes": "Prefers dumbbell and kettlebell work; trains at home."
   },
   "equipment_available": [
     "Dumbbell",

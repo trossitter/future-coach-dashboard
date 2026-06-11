@@ -51,7 +51,7 @@
     "_note": "Synthetic test member (Dune-themed). Journey stage: cold-start / brand-new member (sparse data).",
     "profile": { "id": "mbr_paul", "name": "Paul Atreides", "age": 22, "sex": "male", "height_cm": 178, "weight_kg": 70.0, "timezone": "America/Los_Angeles", "member_since": "2026-06-02", "coach_id": "coach_01HXSAM", "tier": "1:1 Coaching" },
     "goals": [ { "id": "goal_general_p", "text": "Get started with consistent training", "priority": 1, "target_date": null } ],
-    "preferences": { "preferred_session_minutes": 40, "training_days_per_week": 3, "preferred_days": ["Mon", "Wed", "Fri"], "dislikes": [], "notes": "New member; still establishing a baseline." },
+    "preferences": { "preferred_session_minutes": 40, "training_days_per_week": 3, "preferred_days": ["Mon", "Wed", "Fri"], "dislikes": ["Burpees"], "notes": "New member; still establishing a baseline." },
     "equipment_available": ["Dumbbell", "Flat Bench", "Yoga Mat"],
     "injuries": [],
     "workout_history": [],

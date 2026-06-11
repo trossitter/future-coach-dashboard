@@ -33,6 +33,14 @@ services:
       MODEL_COPILOT: ${MODEL_COPILOT:-qwen3-next-80b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-haiku-4-5}
+      # Local / BYO-key OpenAI-compatible server (LLM_PROVIDER=local). Default
+      # targets the host's Ollama; host.docker.internal is resolved via the
+      # host-gateway alias below so it works on Linux as well as Docker Desktop.
+      LOCAL_BASE_URL: ${LOCAL_BASE_URL:-http://host.docker.internal:11434/v1}
+      LOCAL_MODEL: ${LOCAL_MODEL:-llama3.1}
+      LOCAL_API_KEY: ${LOCAL_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # App source is mounted and uvicorn runs with --reload so code edits apply
     # live without an image rebuild. Bind mount overlays the COPY'd /app/app.
     volumes:

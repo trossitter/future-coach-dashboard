@@ -175,7 +175,11 @@ def _llm_plan(prompt: str, intent: dict, journey: dict, cands: list[dict], count
             for c in cands[:25]
         ],
     }
-    plan = llm.parse(ASSEMBLER_SYSTEM, json.dumps(payload), WorkoutPlan, max_tokens=2500)
+    user_msg = json.dumps(payload)
+    pnotes = intent.get("preference_notes") or ""
+    if pnotes:
+        user_msg += f"\n\nMember preference note: {pnotes}"
+    plan = llm.parse(ASSEMBLER_SYSTEM, user_msg, WorkoutPlan, max_tokens=2500)
     return plan.model_dump() if plan else None
 
 
@@ -217,9 +221,10 @@ def plan(state: GenState) -> dict:
                 surface[a.lower()] = r["name"]
         patterns = [r["name"] for r in run("MATCH (p:MovementPattern) RETURN p.name AS name")]
         intent = _resolve_intent(state["prompt"], surface, patterns)
-        dis = run("MATCH (m:Member {id:$id}) RETURN coalesce(m.dislikes,[]) AS d",
+        dis = run("MATCH (m:Member {id:$id}) RETURN coalesce(m.dislikes,[]) AS d, m.preference_notes AS pnotes",
                   id=member_id)
         dislikes = dis[0]["d"] if dis else []
+        preference_notes = (dis[0].get("pnotes") or "") if dis else ""
         # Name-level exclusions parsed from the prompt ("exclude deadlifts"). The
         # skip-set keeps joint / equipment / muscle / pattern mentions OUT of the
         # name filter, so each stays on its own resolver (joint→clarify gate,
@@ -245,6 +250,7 @@ def plan(state: GenState) -> dict:
         intent["exclude_terms"] = sorted({
             t.lower() for t in (*intent.get("exclude_terms", []),
                                 *session_excl, *dislikes)})
+        intent["preference_notes"] = preference_notes
         # Parse equipment polarity from the prompt and fold it into the session
         # overrides (resolved removals/additions), merged with any passed in via
         # the clarify loop.
