@@ -1,4 +1,5 @@
-"""LLM provider facade: Anthropic by default, Venice as an explicit fallback.
+"""LLM provider facade: Anthropic by default, Venice and a local/BYO-key
+OpenAI-compatible server as explicit alternatives.
 
 The public functions in this module are intentionally stable because generation
 and copilot call them directly:
@@ -194,14 +195,29 @@ class _AnthropicProvider(_Provider):
             _account(getattr(s.get_final_message(), "usage", None))
 
 
-class _VeniceProvider(_Provider):
-    def has_key(self) -> bool:
-        return bool(settings.venice_api_key)
+class _OpenAICompatProvider(_Provider):
+    """Shared chat-completions implementation for any OpenAI-API-shaped endpoint.
+    Subclasses supply the key, base URL, per-role model, and any vendor extras;
+    the request/streaming/accounting machinery is identical (it's the same wire
+    format whether the server is Venice, Ollama, LM Studio, llama.cpp, or vLLM)."""
+
+    def _api_key(self) -> str:
+        raise NotImplementedError
+
+    def _base_url(self) -> str:
+        raise NotImplementedError
+
+    def _model(self, role: str) -> str:
+        """Model id for a call role: 'intent' | 'copilot' | 'narrate'."""
+        raise NotImplementedError
+
+    def _extra_body(self) -> dict:
+        return {}
 
     @lru_cache(maxsize=1)
     def _client(self):
         from openai import OpenAI
-        return OpenAI(api_key=settings.venice_api_key, base_url=settings.llm_base_url)
+        return OpenAI(api_key=self._api_key(), base_url=self._base_url())
 
     @staticmethod
     def _messages(system: str, user: str) -> list[dict]:
@@ -210,19 +226,10 @@ class _VeniceProvider(_Provider):
             {"role": "user", "content": user},
         ]
 
-    @staticmethod
-    def _extra_body() -> dict:
-        return {
-            "venice_parameters": {
-                "disable_thinking": True,
-                "include_venice_system_prompt": False,
-            },
-        }
-
     def parse(self, system: str, user: str, schema: type[T], *,
               max_tokens: int) -> T | None:
         resp = self._client().chat.completions.create(
-            model=_venice_model(_parse_role(schema)),
+            model=self._model(_parse_role(schema)),
             messages=self._messages(system, user),
             max_completion_tokens=max_tokens,
             response_format={
@@ -247,7 +254,7 @@ class _VeniceProvider(_Provider):
 
     def complete(self, system: str, user: str, *, max_tokens: int) -> str | None:
         resp = self._client().chat.completions.create(
-            model=_venice_model("narrate"),
+            model=self._model("narrate"),
             messages=self._messages(system, user),
             max_completion_tokens=max_tokens,
             extra_body=self._extra_body(),
@@ -257,7 +264,7 @@ class _VeniceProvider(_Provider):
 
     def stream(self, system: str, user: str, *, max_tokens: int) -> Iterator[str]:
         chunks = self._client().chat.completions.create(
-            model=_venice_model(_stream_role(system)),
+            model=self._model(_stream_role(system)),
             messages=self._messages(system, user),
             max_completion_tokens=max_tokens,
             stream=True,
@@ -273,6 +280,50 @@ class _VeniceProvider(_Provider):
                     yield content
 
 
+class _VeniceProvider(_OpenAICompatProvider):
+    def has_key(self) -> bool:
+        return bool(settings.venice_api_key)
+
+    def _api_key(self) -> str:
+        return settings.venice_api_key
+
+    def _base_url(self) -> str:
+        return settings.llm_base_url
+
+    def _model(self, role: str) -> str:
+        return _venice_model(role)
+
+    def _extra_body(self) -> dict:
+        return {
+            "venice_parameters": {
+                "disable_thinking": True,
+                "include_venice_system_prompt": False,
+            },
+        }
+
+
+class _LocalProvider(_OpenAICompatProvider):
+    """Local / bring-your-own-model OpenAI-compatible server (Ollama, LM Studio,
+    llama.cpp, vLLM). Availability is gated on a configured base URL rather than a
+    key, because a local server typically needs none — so the LLM features run
+    with no hosted credential and no per-token cost. One model serves every role;
+    set LOCAL_API_KEY only when pointing at a hosted endpoint that requires one."""
+
+    def has_key(self) -> bool:
+        return bool(settings.local_base_url)
+
+    def _api_key(self) -> str:
+        # OpenAI's client requires a non-empty key string even when the server
+        # ignores it; a placeholder keeps keyless local servers working.
+        return settings.local_api_key or "not-needed"
+
+    def _base_url(self) -> str:
+        return settings.local_base_url
+
+    def _model(self, role: str) -> str:
+        return settings.local_model
+
+
 @lru_cache(maxsize=1)
 def _provider() -> _Provider:
     name = _provider_name()
@@ -280,6 +331,8 @@ def _provider() -> _Provider:
         return _AnthropicProvider()
     if name == "venice":
         return _VeniceProvider()
+    if name == "local":
+        return _LocalProvider()
     raise ValueError(f"Unsupported LLM_PROVIDER={settings.llm_provider!r}")
 
 
